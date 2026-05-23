@@ -104,7 +104,7 @@ async function queryStats(pool, from, to) {
   return { dispositions: base, total };
 }
 
-async function queryChannels(pool, from, to) {
+async function queryChannels(pool, from, to, allowedChannels) {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -120,6 +120,7 @@ async function queryChannels(pool, from, to) {
   const map = {};
   for (const r of rows) {
     const ch = extractChannel(r.channel);
+    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
     if (!map[ch]) {
       map[ch] = { channel: ch, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0, total_billsec: 0 };
     }
@@ -268,10 +269,12 @@ async function startServer() {
   });
 
   // ── Helper: obtener datos completos ──────────────────────────
+  const allowedChannels = config.channels && config.channels.length > 0 ? config.channels : null;
+
   async function fetchData(from, to) {
     const [stats, channels, hourly] = await Promise.all([
       queryStats(pool, from, to),
-      queryChannels(pool, from, to),
+      queryChannels(pool, from, to, allowedChannels),
       queryHourly(pool, from, to),
     ]);
     return { stats, channels, hourly, from, to, generatedAt: new Date().toISOString() };

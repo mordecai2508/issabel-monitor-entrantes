@@ -12,6 +12,7 @@
     "sessionSecret": "cambia-esto-por-una-cadena-aleatoria-larga-y-segura",
     "pollIntervalMs": 30000
   },
+  "channels": [],
   "users": [
     {
       "id": 1,
