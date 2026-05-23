@@ -1,0 +1,69 @@
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+const COLORS = {
+  'Contestadas': '#22c55e',
+  'No Contest.': '#f59e0b',
+  'Ocupado':     '#ef4444',
+  'Fallidas':    '#6b7280',
+};
+
+const RADIAN = Math.PI / 180;
+function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
+  if (percent < 0.05) return null;
+  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + r * Math.cos(-midAngle * RADIAN);
+  const y = cy + r * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+}
+
+export function DispositionChart({ dispositions }) {
+  const data = [
+    { name: 'Contestadas', value: dispositions?.ANSWERED?.count ?? 0 },
+    { name: 'No Contest.', value: dispositions?.['NO ANSWER']?.count ?? 0 },
+    { name: 'Ocupado',     value: dispositions?.BUSY?.count ?? 0 },
+    { name: 'Fallidas',    value: dispositions?.FAILED?.count ?? 0 },
+  ].filter(d => d.value > 0);
+
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  if (total === 0) {
+    return (
+      <div className="flex items-center justify-center h-48 text-slate-500 text-sm">
+        Sin datos para mostrar
+      </div>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <PieChart>
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={90}
+          paddingAngle={2}
+          dataKey="value"
+          labelLine={false}
+          label={renderCustomLabel}
+        >
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={COLORS[entry.name]} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9' }}
+          formatter={(v, name) => [v.toLocaleString('es-CO'), name]}
+        />
+        <Legend
+          formatter={(value) => <span style={{ color: '#94a3b8', fontSize: 12 }}>{value}</span>}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}

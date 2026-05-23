@@ -1,0 +1,6 @@
+node_modules/
+backend/config.json
+frontend/dist/
+.env
+*.log
+CLAUDE.md

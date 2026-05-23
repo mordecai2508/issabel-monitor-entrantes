@@ -1,0 +1,29 @@
+{
+  "db": {
+    "host": "192.168.x.x",
+    "port": 3306,
+    "user": "asterisk",
+    "password": "yourpassword",
+    "database": "asteriskcdrdb",
+    "timezone": "-05:00"
+  },
+  "server": {
+    "port": 4000,
+    "sessionSecret": "cambia-esto-por-una-cadena-aleatoria-larga-y-segura",
+    "pollIntervalMs": 30000
+  },
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin"
+    },
+    {
+      "id": 2,
+      "username": "monitor",
+      "password": "monitor123",
+      "role": "monitor"
+    }
+  ]
+}
