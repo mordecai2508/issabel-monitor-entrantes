@@ -13,10 +13,13 @@ async function req(method, url, body) {
 }
 
 export const api = {
-  login:      (username, password) => req('POST', '/api/auth/login',  { username, password }),
-  logout:     ()                   => req('POST', '/api/auth/logout'),
-  me:         ()                   => req('GET',  '/api/auth/me'),
-  today:      ()                   => req('GET',  '/api/calls/today'),
-  range:      (from, to)           => req('GET',  `/api/calls/range?from=${from}&to=${to}`),
-  adminUsers: ()                   => req('GET',  '/api/admin/users'),
+  login:         (username, password) => req('POST', '/api/auth/login',  { username, password }),
+  logout:        ()                   => req('POST', '/api/auth/logout'),
+  me:            ()                   => req('GET',  '/api/auth/me'),
+  today:         ()                   => req('GET',  '/api/calls/today'),
+  range:         (from, to)           => req('GET',  `/api/calls/range?from=${from}&to=${to}`),
+  adminUsers:    ()                   => req('GET',  '/api/admin/users'),
+  adminChannels: ()                   => req('GET',  '/api/admin/channels'),
+  updateChannelAlias: (channel, alias) =>
+    req('PUT', `/api/admin/channels/${encodeURIComponent(channel)}`, { alias }),
 };

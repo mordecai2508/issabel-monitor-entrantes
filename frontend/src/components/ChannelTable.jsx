@@ -14,7 +14,7 @@ function fmtDuration(sec) {
   return `${m}m`;
 }
 
-export function ChannelTable({ channels }) {
+export function ChannelTable({ channels, channelAliases = {} }) {
   const [sortKey, setSortKey]   = useState('total');
   const [sortDir, setSortDir]   = useState('desc');
 
@@ -73,7 +73,7 @@ export function ChannelTable({ channels }) {
             <tr key={ch.channel} className="hover:bg-slate-700/30 transition-colors">
               <td className="py-2.5 pr-4">
                 <span className="font-mono text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
-                  {ch.channel}
+                  {channelAliases[ch.channel] || ch.channel}
                 </span>
               </td>
               <td className="py-2.5 text-right font-semibold text-slate-100">{ch.total}</td>

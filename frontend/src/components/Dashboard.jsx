@@ -23,10 +23,11 @@ export default function Dashboard() {
 
   const { connected } = useSSE('/api/events', { onInit: handleData, onUpdate: handleData });
 
-  const disp     = data?.stats?.dispositions;
-  const total    = data?.stats?.total ?? 0;
-  const channels = data?.channels ?? [];
-  const hourly   = data?.hourly   ?? [];
+  const disp           = data?.stats?.dispositions;
+  const total          = data?.stats?.total ?? 0;
+  const channels       = data?.channels ?? [];
+  const hourly         = data?.hourly   ?? [];
+  const channelAliases = data?.channelAliases ?? {};
 
   function fmtDurAvg(sec) {
     if (!sec) return '0s';
@@ -160,7 +161,7 @@ export default function Dashboard() {
               Estadísticas por canal
               <span className="ml-2 text-xs font-normal text-slate-500">({channels.length} canales)</span>
             </h2>
-            <ChannelTable channels={channels} />
+            <ChannelTable channels={channels} channelAliases={channelAliases} />
           </div>
         </>
       )}

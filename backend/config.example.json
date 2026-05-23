@@ -13,6 +13,7 @@
     "pollIntervalMs": 30000
   },
   "channels": [],
+  "channelAliases": {},
   "users": [
     {
       "id": 1,

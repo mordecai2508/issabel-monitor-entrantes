@@ -61,17 +61,17 @@ function extractChannel(raw) {
 }
 
 // ── Queries CDR ───────────────────────────────────────────────────
-async function queryStats(pool, from, to) {
+async function queryStats(pool, from, to, allowedChannels) {
   const [rows] = await pool.query(
     `SELECT
+       channel,
        disposition,
-       COUNT(*)                                     AS count,
-       COALESCE(SUM(duration), 0)                   AS total_duration,
-       COALESCE(SUM(billsec), 0)                    AS total_billsec,
-       COALESCE(AVG(NULLIF(billsec,0)), 0)          AS avg_billsec
+       COUNT(*)                    AS count,
+       COALESCE(SUM(duration), 0)  AS total_duration,
+       COALESCE(SUM(billsec), 0)   AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY disposition`,
+     GROUP BY channel, disposition`,
     [from, to]
   );
 
@@ -84,18 +84,19 @@ async function queryStats(pool, from, to) {
 
   let total = 0;
   for (const r of rows) {
+    const ch = extractChannel(r.channel);
+    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
     const d = r.disposition.toUpperCase();
     if (base[d]) {
-      base[d] = {
-        count:          Number(r.count),
-        total_duration: Number(r.total_duration),
-        total_billsec:  Number(r.total_billsec),
-        avg_billsec:    Math.round(Number(r.avg_billsec)),
-        pct: 0,
-      };
+      base[d].count          += Number(r.count);
+      base[d].total_duration += Number(r.total_duration);
+      base[d].total_billsec  += Number(r.total_billsec);
     }
     total += Number(r.count);
   }
+
+  if (base.ANSWERED.count > 0)
+    base.ANSWERED.avg_billsec = Math.round(base.ANSWERED.total_billsec / base.ANSWERED.count);
 
   for (const key of Object.keys(base)) {
     base[key].pct = total > 0 ? Math.round((base[key].count / total) * 1000) / 10 : 0;
@@ -135,15 +136,16 @@ async function queryChannels(pool, from, to, allowedChannels) {
   return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
-async function queryHourly(pool, from, to) {
+async function queryHourly(pool, from, to, allowedChannels) {
   const [rows] = await pool.query(
     `SELECT
+       channel,
        HOUR(calldate) AS hour,
        disposition,
        COUNT(*)       AS count
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY HOUR(calldate), disposition
+     GROUP BY channel, HOUR(calldate), disposition
      ORDER BY hour`,
     [from, to]
   );
@@ -154,6 +156,8 @@ async function queryHourly(pool, from, to) {
   }));
 
   for (const r of rows) {
+    const ch = extractChannel(r.channel);
+    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
     const h = Number(r.hour);
     const d = r.disposition.toUpperCase();
     if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d)) {
@@ -271,13 +275,17 @@ async function startServer() {
   // ── Helper: obtener datos completos ──────────────────────────
   const allowedChannels = config.channels && config.channels.length > 0 ? config.channels : null;
 
+  function getAliases() {
+    return config.channelAliases || {};
+  }
+
   async function fetchData(from, to) {
     const [stats, channels, hourly] = await Promise.all([
-      queryStats(pool, from, to),
+      queryStats(pool, from, to, allowedChannels),
       queryChannels(pool, from, to, allowedChannels),
-      queryHourly(pool, from, to),
+      queryHourly(pool, from, to, allowedChannels),
     ]);
-    return { stats, channels, hourly, from, to, generatedAt: new Date().toISOString() };
+    return { stats, channels, hourly, channelAliases: getAliases(), from, to, generatedAt: new Date().toISOString() };
   }
 
   // ── Datos de hoy ──────────────────────────────────────────────
@@ -373,6 +381,33 @@ async function startServer() {
       ok: true,
       users: config.users.map(u => ({ id: u.id, username: u.username, role: u.role })),
     });
+  });
+
+  app.get('/api/admin/channels', requireAdmin, (req, res) => {
+    const aliases = getAliases();
+    const channels = (config.channels || []).map(ch => ({
+      channel: ch,
+      alias: aliases[ch] || '',
+    }));
+    res.json({ ok: true, channels });
+  });
+
+  app.put('/api/admin/channels/:channel', requireAdmin, (req, res) => {
+    const channel = decodeURIComponent(req.params.channel);
+    const { alias } = req.body || {};
+    if (typeof alias !== 'string')
+      return res.status(400).json({ ok: false, error: 'El campo alias es requerido' });
+    if (!(config.channels || []).includes(channel))
+      return res.status(404).json({ ok: false, error: 'Canal no encontrado' });
+
+    if (!config.channelAliases) config.channelAliases = {};
+    if (alias.trim()) {
+      config.channelAliases[channel] = alias.trim();
+    } else {
+      delete config.channelAliases[channel];
+    }
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    res.json({ ok: true, channel, alias: alias.trim() });
   });
 
   // SPA catch-all (producción)

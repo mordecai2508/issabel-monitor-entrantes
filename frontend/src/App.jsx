@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import HistoricalView from './components/HistoricalView';
+import ChannelAliasManager from './components/ChannelAliasManager';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -13,6 +14,14 @@ function PrivateRoute({ children }) {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
 
@@ -26,6 +35,7 @@ function AppRoutes() {
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="historical" element={<HistoricalView />} />
+        <Route path="channels" element={<AdminRoute><ChannelAliasManager /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Phone, LayoutDashboard, History,
-  LogOut, Wifi, WifiOff, Shield, Eye,
+  LogOut, Wifi, WifiOff, Shield, Eye, PhoneCall,
 } from 'lucide-react';
 
 function NavItem({ to, icon: Icon, label }) {
@@ -51,8 +51,14 @@ export default function Layout() {
         {/* Nav */}
         <nav className="flex-1 space-y-1">
           <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2">Monitoreo</p>
-          <NavItem to="/"          icon={LayoutDashboard} label="Dashboard" />
+          <NavItem to="/"           icon={LayoutDashboard} label="Dashboard" />
           <NavItem to="/historical" icon={History}         label="Histórico" />
+          {user?.role === 'admin' && (
+            <>
+              <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2 mt-4">Admin</p>
+              <NavItem to="/channels" icon={PhoneCall} label="Canales" />
+            </>
+          )}
         </nav>
 
         {/* User */}

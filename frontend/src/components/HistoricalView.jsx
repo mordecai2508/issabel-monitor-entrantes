@@ -38,10 +38,11 @@ export default function HistoricalView() {
     }
   }
 
-  const disp     = data?.stats?.dispositions;
-  const total    = data?.stats?.total ?? 0;
-  const channels = data?.channels ?? [];
-  const hourly   = data?.hourly   ?? [];
+  const disp           = data?.stats?.dispositions;
+  const total          = data?.stats?.total ?? 0;
+  const channels       = data?.channels ?? [];
+  const hourly         = data?.hourly   ?? [];
+  const channelAliases = data?.channelAliases ?? {};
 
   function exportCSV() {
     if (!channels.length) return;
@@ -159,7 +160,7 @@ export default function HistoricalView() {
               Por canal
               <span className="ml-2 text-xs font-normal text-slate-500">({channels.length} canales)</span>
             </h2>
-            <ChannelTable channels={channels} />
+            <ChannelTable channels={channels} channelAliases={channelAliases} />
           </div>
         </div>
       )}
