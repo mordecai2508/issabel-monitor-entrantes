@@ -1,0 +1,9 @@
+services:
+  call-monitor:
+    build: .
+    container_name: call-monitor
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/config.json:/app/backend/config.json
