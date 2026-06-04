@@ -61,7 +61,19 @@ function extractChannel(raw) {
 }
 
 // ── Queries CDR ───────────────────────────────────────────────────
-async function queryStats(pool, from, to, allowedChannels) {
+// direction: 'in' = solo allowedChannels, 'out' = excluir allowedChannels, null = todos
+function passesFilter(channel, allowedChannels, direction) {
+  if (!allowedChannels || allowedChannels.length === 0) return direction !== 'out';
+  const ch = extractChannel(channel);
+  // Canales internos (Local/) nunca son salientes externos
+  if (direction === 'out' && ch.startsWith('Local/')) return false;
+  const inList = allowedChannels.includes(ch);
+  if (direction === 'in')  return inList;
+  if (direction === 'out') return !inList;
+  return true;
+}
+
+async function queryStats(pool, from, to, allowedChannels, direction = 'in') {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -84,8 +96,7 @@ async function queryStats(pool, from, to, allowedChannels) {
 
   let total = 0;
   for (const r of rows) {
-    const ch = extractChannel(r.channel);
-    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
+    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
     const d = r.disposition.toUpperCase();
     if (base[d]) {
       base[d].count          += Number(r.count);
@@ -105,7 +116,7 @@ async function queryStats(pool, from, to, allowedChannels) {
   return { dispositions: base, total };
 }
 
-async function queryChannels(pool, from, to, allowedChannels) {
+async function queryChannels(pool, from, to, allowedChannels, direction = 'in') {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -120,8 +131,8 @@ async function queryChannels(pool, from, to, allowedChannels) {
 
   const map = {};
   for (const r of rows) {
+    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
     const ch = extractChannel(r.channel);
-    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
     if (!map[ch]) {
       map[ch] = { channel: ch, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0, total_billsec: 0 };
     }
@@ -136,7 +147,7 @@ async function queryChannels(pool, from, to, allowedChannels) {
   return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
-async function queryHourly(pool, from, to, allowedChannels) {
+async function queryHourly(pool, from, to, allowedChannels, direction = 'in') {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -156,8 +167,7 @@ async function queryHourly(pool, from, to, allowedChannels) {
   }));
 
   for (const r of rows) {
-    const ch = extractChannel(r.channel);
-    if (allowedChannels && allowedChannels.length > 0 && !allowedChannels.includes(ch)) continue;
+    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
     const h = Number(r.hour);
     const d = r.disposition.toUpperCase();
     if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d)) {
@@ -169,9 +179,41 @@ async function queryHourly(pool, from, to, allowedChannels) {
   return hours;
 }
 
+async function queryQueues(pool, from, to, allowedChannels, queues, lostDests) {
+  if (!queues || queues.length === 0) return [];
+
+  const [rows] = await pool.query(
+    `SELECT channel, dst, disposition, COUNT(*) AS count
+     FROM cdr
+     WHERE calldate >= ? AND calldate < ?
+     GROUP BY channel, dst, disposition`,
+    [from, to]
+  );
+
+  const validDsts = new Set([...queues, ...lostDests]);
+  const result = {};
+  for (const q of queues) {
+    result[q] = { queue: q, label: `Cola ${q}`, total: 0, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
+  }
+  result['__lost__'] = { queue: '__lost__', label: 'Perdidas', total: 0, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
+
+  for (const r of rows) {
+    if (!passesFilter(r.channel, allowedChannels, 'in')) continue;
+    if (!validDsts.has(r.dst)) continue;
+    const key   = queues.includes(r.dst) ? r.dst : '__lost__';
+    const d     = r.disposition.toUpperCase();
+    result[key].total += Number(r.count);
+    if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d))
+      result[key][d] += Number(r.count);
+  }
+
+  return Object.values(result);
+}
+
 // ── Helpers de fecha (zona local del servidor) ────────────────────
 function toMySQLDate(d) {
-  return d.toISOString().slice(0, 19).replace('T', ' ');
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 function todayRange() {
@@ -274,18 +316,39 @@ async function startServer() {
 
   // ── Helper: obtener datos completos ──────────────────────────
   const allowedChannels = config.channels && config.channels.length > 0 ? config.channels : null;
+  const configQueues    = config.queues         || [];
+  const lostDests       = config.lostDestinations || ['s', 'hang', 'hangup'];
 
-  function getAliases() {
-    return config.channelAliases || {};
-  }
+  function getAliases()  { return config.channelAliases || {}; }
+  function getAppName()  { return config.app?.name || 'Call Monitor'; }
 
   async function fetchData(from, to) {
-    const [stats, channels, hourly] = await Promise.all([
-      queryStats(pool, from, to, allowedChannels),
-      queryChannels(pool, from, to, allowedChannels),
-      queryHourly(pool, from, to, allowedChannels),
+    const [
+      totalStats, totalChannels, totalHourly,
+      inStats, inChannels, inHourly,
+      outStats, outChannels,
+      queues,
+    ] = await Promise.all([
+      queryStats(pool, from, to, allowedChannels, null),
+      queryChannels(pool, from, to, allowedChannels, null),
+      queryHourly(pool, from, to, allowedChannels, null),
+      queryStats(pool, from, to, allowedChannels, 'in'),
+      queryChannels(pool, from, to, allowedChannels, 'in'),
+      queryHourly(pool, from, to, allowedChannels, 'in'),
+      queryStats(pool, from, to, allowedChannels, 'out'),
+      queryChannels(pool, from, to, allowedChannels, 'out'),
+      queryQueues(pool, from, to, allowedChannels, configQueues, lostDests),
     ]);
-    return { stats, channels, hourly, channelAliases: getAliases(), from, to, generatedAt: new Date().toISOString() };
+    return {
+      stats: totalStats, channels: totalChannels, hourly: totalHourly,
+      inbound:  { stats: inStats,  channels: inChannels,  hourly: inHourly },
+      outbound: { stats: outStats, channels: outChannels },
+      queues,
+      channelAliases: getAliases(),
+      appName: getAppName(),
+      from, to,
+      generatedAt: new Date().toISOString(),
+    };
   }
 
   // ── Datos de hoy ──────────────────────────────────────────────
@@ -308,13 +371,11 @@ async function startServer() {
     let { from, to } = req.query;
     if (!from || !to) return res.status(400).json({ ok: false, error: 'Parámetros from y to son requeridos' });
 
-    const fromDate = new Date(from);
-    const toDate   = new Date(to);
+    // Parsear como medianoche local (no UTC) para evitar desfase de un día
+    const fromDate = new Date(from + 'T00:00:00');
+    const toDate   = new Date(to   + 'T23:59:59');
     if (isNaN(fromDate) || isNaN(toDate))
       return res.status(400).json({ ok: false, error: 'Fechas inválidas' });
-
-    // Incluir todo el día 'to' (hasta 23:59:59)
-    toDate.setHours(23, 59, 59, 999);
 
     try {
       const data = await fetchData(toMySQLDate(fromDate), toMySQLDate(toDate));
@@ -381,6 +442,20 @@ async function startServer() {
       ok: true,
       users: config.users.map(u => ({ id: u.id, username: u.username, role: u.role })),
     });
+  });
+
+  app.get('/api/config/public', (req, res) => {
+    res.json({ appName: getAppName() });
+  });
+
+  app.put('/api/admin/app', requireAdmin, (req, res) => {
+    const { name } = req.body || {};
+    if (typeof name !== 'string' || !name.trim())
+      return res.status(400).json({ ok: false, error: 'El campo name es requerido' });
+    if (!config.app) config.app = {};
+    config.app.name = name.trim();
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    res.json({ ok: true, name: config.app.name });
   });
 
   app.get('/api/admin/channels', requireAdmin, (req, res) => {

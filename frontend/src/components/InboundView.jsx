@@ -1,8 +1,5 @@
 import { useState, useCallback } from 'react';
-import {
-  Phone, PhoneOff, PhoneMissed, AlertTriangle, PhoneCall,
-  Wifi, WifiOff, RefreshCw, Users,
-} from 'lucide-react';
+import { Phone, PhoneCall, Wifi, WifiOff, RefreshCw, Users, PhoneIncoming } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { DispositionChart } from './DispositionChart';
 import { HourlyChart } from './HourlyChart';
@@ -12,13 +9,6 @@ import { useSSE } from '../hooks/useSSE';
 function fmtTime(isoStr) {
   if (!isoStr) return '—';
   return new Date(isoStr).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-function fmtDate(isoStr) {
-  if (!isoStr) return '—';
-  return new Date(isoStr).toLocaleDateString('es-CO', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
 }
 
 function fmtDuration(sec) {
@@ -41,9 +31,7 @@ function QueueCard({ queue }) {
     <div className="card flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-            isLost ? 'bg-red-500/10' : 'bg-blue-500/10'
-          }`}>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLost ? 'bg-red-500/10' : 'bg-blue-500/10'}`}>
             <Users className={`w-4 h-4 ${isLost ? 'text-red-400' : 'text-blue-400'}`} />
           </div>
           <span className="text-sm font-semibold text-slate-200">{queue.label}</span>
@@ -69,31 +57,33 @@ function QueueCard({ queue }) {
   );
 }
 
-export default function Dashboard() {
+export default function InboundView() {
   const [data, setData] = useState(null);
   const handleData = useCallback((d) => setData(d), []);
   const { connected } = useSSE('/api/events', { onInit: handleData, onUpdate: handleData });
 
-  const disp           = data?.stats?.dispositions;
-  const total          = data?.stats?.total ?? 0;
-  const channels       = data?.inbound?.channels ?? [];
-  const hourly         = data?.hourly   ?? [];
-  const queues         = data?.queues   ?? [];
+  const inbound        = data?.inbound;
+  const disp           = inbound?.stats?.dispositions;
+  const total          = inbound?.stats?.total ?? 0;
+  const channels       = inbound?.channels ?? [];
+  const hourly         = inbound?.hourly   ?? [];
+  const queues         = data?.queues      ?? [];
   const channelAliases = data?.channelAliases ?? {};
-  const lostTotal      = queues.find(q => q.queue === '__lost__')?.total ?? 0;
 
   return (
     <div className="p-6 space-y-6 min-h-screen">
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <p className="text-3xl font-bold text-slate-100 capitalize leading-tight">
-            {fmtDate(data?.generatedAt)}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
+              <PhoneIncoming className="w-4 h-4 text-blue-400" />
+            </div>
+            <h1 className="text-xl font-semibold text-slate-100">Llamadas entrantes</h1>
+          </div>
           {data && (
-            <p className="text-lg text-slate-400 mt-1">
-              Última actualización: <span className="text-slate-200 tabular-nums">{fmtTime(data.generatedAt)}</span>
+            <p className="text-sm text-slate-500 mt-1 ml-10">
+              Actualizado: <span className="text-slate-400">{fmtTime(data.generatedAt)}</span>
             </p>
           )}
         </div>
@@ -115,48 +105,33 @@ export default function Dashboard() {
 
       {data && (
         <>
-          {/* Stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Total llamadas" value={total}                  icon={Phone}      color="blue" />
-            <StatCard label="Contestadas"    value={disp?.ANSWERED?.count}  icon={PhoneCall}  color="green"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard label="Total entrantes" value={total}                 icon={Phone}     color="blue" />
+            <StatCard label="Contestadas"     value={disp?.ANSWERED?.count} icon={PhoneCall} color="green"
               sub="del total" pct={disp?.ANSWERED?.pct} />
-            <StatCard label="Perdidas"       value={lostTotal}              icon={PhoneMissed} color="red"
-              sub="sin atender" />
           </div>
 
-          {/* Duración + fallidas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Fallidas" value={disp?.FAILED?.count} icon={AlertTriangle} color="slate"
-              sub="del total" pct={disp?.FAILED?.pct} />
-            <div className="card col-span-1 lg:col-span-3 flex flex-wrap items-center gap-8">
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.avg_billsec ?? 0)}</p>
-              </div>
-              <div className="h-10 w-px bg-slate-700" />
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Tiempo total en llamadas</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.total_billsec ?? 0)}</p>
-              </div>
-              <div className="h-10 w-px bg-slate-700" />
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Canales activos hoy</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{channels.length}</p>
-              </div>
+          <div className="card flex flex-wrap items-center gap-8">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.avg_billsec ?? 0)}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-700" />
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Tiempo total en llamadas</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.total_billsec ?? 0)}</p>
             </div>
           </div>
 
-          {/* Colas de entrada (sin repetir Perdidas que ya aparece arriba) */}
-          {queues.filter(q => q.queue !== '__lost__').length > 0 && (
+          {queues.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {queues.filter(q => q.queue !== '__lost__').map(q => <QueueCard key={q.queue} queue={q} />)}
+              {queues.map(q => <QueueCard key={q.queue} queue={q} />)}
             </div>
           )}
 
-          {/* Gráficas */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div className="card lg:col-span-2">
-              <h2 className="text-sm font-semibold text-slate-200 mb-4">Distribución de llamadas</h2>
+              <h2 className="text-sm font-semibold text-slate-200 mb-4">Distribución</h2>
               <DispositionChart dispositions={disp} />
             </div>
             <div className="card lg:col-span-3">
@@ -165,12 +140,11 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Tabla canales */}
           {channels.length > 0 && (
             <div className="card">
               <h2 className="text-sm font-semibold text-slate-200 mb-4">
-                Estadísticas por canal
-                <span className="ml-2 text-xs font-normal text-slate-500">({channels.length} canales)</span>
+                Canales entrantes
+                <span className="ml-2 text-xs font-normal text-slate-500">({channels.length})</span>
               </h2>
               <ChannelTable channels={channels} channelAliases={channelAliases} />
             </div>

@@ -22,4 +22,6 @@ export const api = {
   adminChannels: ()                   => req('GET',  '/api/admin/channels'),
   updateChannelAlias: (channel, alias) =>
     req('PUT', `/api/admin/channels/${encodeURIComponent(channel)}`, { alias }),
+  publicConfig:  ()                   => req('GET',  '/api/config/public'),
+  updateAppName: (name)               => req('PUT',  '/api/admin/app', { name }),
 };

@@ -12,8 +12,13 @@
     "sessionSecret": "cambia-esto-por-una-cadena-aleatoria-larga-y-segura",
     "pollIntervalMs": 30000
   },
+  "app": {
+    "name": "Call Monitor"
+  },
   "channels": [],
   "channelAliases": {},
+  "queues": ["8000", "8300"],
+  "lostDestinations": ["s", "hang", "hangup"],
   "users": [
     {
       "id": 1,

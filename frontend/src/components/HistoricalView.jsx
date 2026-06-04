@@ -11,9 +11,11 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function fmtDate(isoStr) {
-  if (!isoStr) return '—';
-  return new Date(isoStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+function fmtDate(str) {
+  if (!str) return '—';
+  // "YYYY-MM-DD" → tratar como fecha local para evitar desfase de un día por zona horaria
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(str) ? new Date(str + 'T00:00:00') : new Date(str);
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export default function HistoricalView() {

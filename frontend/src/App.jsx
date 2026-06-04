@@ -3,6 +3,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
+import InboundView from './components/InboundView';
+import OutboundView from './components/OutboundView';
 import HistoricalView from './components/HistoricalView';
 import ChannelAliasManager from './components/ChannelAliasManager';
 
@@ -34,6 +36,8 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
+        <Route path="inbound"   element={<InboundView />} />
+        <Route path="outbound"  element={<OutboundView />} />
         <Route path="historical" element={<HistoricalView />} />
         <Route path="channels" element={<AdminRoute><ChannelAliasManager /></AdminRoute>} />
       </Route>

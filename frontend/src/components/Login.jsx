@@ -32,7 +32,7 @@ export default function Login() {
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/25">
             <Phone className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Issabel Monitor</h1>
+          <h1 className="text-2xl font-bold text-slate-100">WSoluciones Monitor</h1>
           <p className="text-slate-400 text-sm mt-1">Panel de llamadas en tiempo real</p>
         </div>
 
@@ -43,7 +43,7 @@ export default function Login() {
             <input
               type="text"
               className="input"
-              placeholder="admin"
+              placeholder="usuario"
               value={form.username}
               onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
               autoComplete="username"
@@ -82,7 +82,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-slate-600 text-xs mt-6">
-          Issabel Call Monitor v1.0
+          WSoluciones Call Monitor v1.0
         </p>
       </div>
     </div>

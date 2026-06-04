@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Phone, LayoutDashboard, History,
-  LogOut, Wifi, WifiOff, Shield, Eye, PhoneCall,
+  LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
+  PhoneIncoming, PhoneOutgoing,
 } from 'lucide-react';
+import { api } from '../api';
 
 function NavItem({ to, icon: Icon, label }) {
   return (
@@ -28,6 +31,27 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const [appName, setAppName]     = useState('Call Monitor');
+  const [editing, setEditing]     = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving]       = useState(false);
+
+  useEffect(() => {
+    api.publicConfig().then(d => setAppName(d.appName)).catch(() => {});
+  }, []);
+
+  async function saveAppName() {
+    if (!editValue.trim()) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      const res = await api.updateAppName(editValue);
+      setAppName(res.name);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  }
+
   async function handleLogout() {
     await logout();
     navigate('/login');
@@ -37,14 +61,46 @@ export default function Layout() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="w-56 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col p-4">
+
         {/* Brand */}
-        <div className="flex items-center gap-2.5 mb-8 px-1">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-2.5 mb-8 px-1 group">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
             <Phone className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <div className="text-sm font-semibold text-slate-100 leading-none">Issabel</div>
-            <div className="text-xs text-slate-500 leading-none mt-0.5">Call Monitor</div>
+          <div className="flex-1 overflow-hidden">
+            {editing ? (
+              <div className="flex items-center gap-1">
+                <input
+                  autoFocus
+                  value={editValue}
+                  onChange={e => setEditValue(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter')  saveAppName();
+                    if (e.key === 'Escape') setEditing(false);
+                  }}
+                  className="w-full bg-slate-700 border border-slate-500 rounded px-1.5 py-0.5 text-xs text-slate-100 focus:outline-none focus:border-blue-500"
+                />
+                <button onClick={saveAppName} disabled={saving} className="text-emerald-400 hover:text-emerald-300">
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setEditing(false)} className="text-slate-500 hover:text-slate-300">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <div className="text-sm font-semibold text-slate-100 leading-none truncate">{appName}</div>
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={() => { setEditValue(appName); setEditing(true); }}
+                    className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-slate-300 transition-opacity"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="text-xs text-slate-500 leading-none mt-0.5">Physical</div>
           </div>
         </div>
 
@@ -52,6 +108,8 @@ export default function Layout() {
         <nav className="flex-1 space-y-1">
           <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2">Monitoreo</p>
           <NavItem to="/"           icon={LayoutDashboard} label="Dashboard" />
+          <NavItem to="/inbound"    icon={PhoneIncoming}   label="Entrantes" />
+          <NavItem to="/outbound"   icon={PhoneOutgoing}   label="Salientes" />
           <NavItem to="/historical" icon={History}         label="Histórico" />
           {user?.role === 'admin' && (
             <>
