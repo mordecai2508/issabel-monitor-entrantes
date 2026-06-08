@@ -1,4 +1,13 @@
 node_modules/
+frontend/dist/
+backend/db/monitor.sqlite
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/config.json
+.env
+*.log
+coverage/
+node_modules/
 backend/config.json
 frontend/dist/
 .env

@@ -24,4 +24,9 @@ export const api = {
     req('PUT', `/api/admin/channels/${encodeURIComponent(channel)}`, { alias }),
   publicConfig:  ()                   => req('GET',  '/api/config/public'),
   updateAppName: (name)               => req('PUT',  '/api/admin/app', { name }),
+  // User management
+  createUser:       (data)            => req('POST',  '/api/admin/users', data),
+  updateUser:       (id, data)        => req('PATCH', `/api/admin/users/${id}`, data),
+  resetPassword:    (id)              => req('POST',  `/api/admin/users/${id}/reset-password`),
+  auditLog:         ()                => req('GET',   '/api/admin/audit-log'),
 };

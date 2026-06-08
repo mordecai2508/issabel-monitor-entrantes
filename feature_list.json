@@ -1,0 +1,227 @@
+{
+  "project": "issabel-monitor-analytics",
+  "description": "Plataforma web para centralizar, procesar y visualizar información operativa de servidores Issabel PBX. Monorepo backend (Node.js/Express/MySQL) y frontend (React/Vite/Tailwind).",
+  "repository": "https://github.com/mordecai2508/issabel-monitor-entrantes",
+  "rules": {
+    "one_feature_at_a_time": true,
+    "require_tests_to_close": true,
+    "require_approved_spec_to_implement": true,
+    "require_git_commit_before_next": true,
+    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"]
+  },
+  "features": [
+    {
+      "id": 1,
+      "name": "auth_session",
+      "title": "Autenticación por sesión (login/logout/me)",
+      "description": "Login con usuario+contraseña, sesión httpOnly, middleware requireAuth/requireAdmin, auto-hash de contraseñas al arrancar.",
+      "refs": ["RF-06", "RNF-01", "CU-06"],
+      "sdd": false,
+      "status": "done",
+      "note": "Implementado en backend/server.js. Usuarios en config.json."
+    },
+    {
+      "id": 2,
+      "name": "dashboard_today",
+      "title": "Dashboard principal con estadísticas del día",
+      "description": "KPIs de llamadas (totales, contestadas, perdidas, fallidas), gráfico por hora, distribución por canal, contestadas vs perdidas. SSE para actualización automática cada 30 s.",
+      "refs": ["RF-01"],
+      "sdd": false,
+      "status": "done",
+      "note": "Dashboard.jsx + HourlyChart + DispositionChart + StatCard. SSE en useSSE.js."
+    },
+    {
+      "id": 3,
+      "name": "inbound_view_basic",
+      "title": "Vista básica de llamadas entrantes con tabla de canales",
+      "description": "Tabla de llamadas entrantes por canal con totales de contestadas, perdidas, fallidas y ocupadas. Filtro por rango de fechas.",
+      "refs": ["RF-02"],
+      "sdd": false,
+      "status": "done",
+      "note": "InboundView.jsx + ChannelTable.jsx. Endpoint /api/calls/range."
+    },
+    {
+      "id": 4,
+      "name": "outbound_view_basic",
+      "title": "Vista básica de llamadas salientes",
+      "description": "Tabla de llamadas salientes por canal con filtro de fechas.",
+      "refs": ["RF-03"],
+      "sdd": false,
+      "status": "done",
+      "note": "OutboundView.jsx. Mismo endpoint /api/calls/range con direction=out."
+    },
+    {
+      "id": 5,
+      "name": "historical_view_basic",
+      "title": "Vista histórica básica con selector de rango",
+      "description": "Consulta de estadísticas por rango de fechas personalizado.",
+      "refs": ["RF-04"],
+      "sdd": false,
+      "status": "done",
+      "note": "HistoricalView.jsx."
+    },
+    {
+      "id": 6,
+      "name": "channel_alias",
+      "title": "Gestión de alias de canales/troncales",
+      "description": "Admin puede renombrar canales (troncales) con un alias visible en toda la UI.",
+      "refs": ["RF-05"],
+      "sdd": false,
+      "status": "done",
+      "note": "ChannelAliasManager.jsx. Endpoints PUT /api/admin/channels/:channel."
+    },
+    {
+      "id": 7,
+      "name": "infra_docker",
+      "title": "Infraestructura Docker",
+      "description": "Dockerfile + docker-compose.yml para despliegue en producción.",
+      "refs": [],
+      "sdd": false,
+      "status": "done",
+      "note": "Sirve el frontend compilado desde el backend en producción."
+    },
+    {
+      "id": 8,
+      "name": "user_management",
+      "title": "Gestión completa de usuarios (CRUD + auditoría)",
+      "description": "Migrar usuarios de config.json a tabla SQLite local. Admin puede crear, editar, desactivar y restablecer contraseñas. Registro de auditoría de accesos (login/logout + IP + timestamp). Operadores solo tienen acceso a consultas.",
+      "refs": ["RF-06", "RNF-01", "CU-07"],
+      "acceptance": [
+        "GET /api/admin/users lista usuarios con id, username, role, active, last_login",
+        "POST /api/admin/users crea usuario (admin/operador); devuelve 201",
+        "PATCH /api/admin/users/:id edita username, role o activa/desactiva",
+        "POST /api/admin/users/:id/reset-password genera contraseña temporal y la devuelve cifrada",
+        "Tabla audit_log guarda: user_id, action, ip, timestamp en cada login/logout",
+        "GET /api/admin/audit-log devuelve los últimos 200 registros de auditoría",
+        "Los usuarios con role=operador reciben 403 en cualquier endpoint /api/admin/*",
+        "La migración de usuarios existentes de config.json a SQLite ocurre automáticamente al arrancar",
+        "Tests: CRUD completo, auditoría, acceso denegado a operador"
+      ],
+      "sdd": true,
+      "status": "in_progress"
+    },
+    {
+      "id": 9,
+      "name": "inbound_filters_export",
+      "title": "Llamadas entrantes con filtros avanzados y exportación",
+      "description": "Mejorar la vista de entrantes con filtros por troncal, número origen y estado de llamada. Añadir exportación a Excel (xlsx) y PDF.",
+      "refs": ["RF-02", "CU-08"],
+      "acceptance": [
+        "GET /api/calls/inbound acepta ?from=&to=&trunk=&origin=&disposition= y retorna registros individuales del CDR (no agregados)",
+        "Respuesta paginada: ?page=1&limit=100; incluye meta.total",
+        "Columnas: fecha/hora, número origen, número destino, troncal, duración, estado",
+        "GET /api/calls/inbound/export?format=xlsx descarga el resultado como archivo Excel",
+        "GET /api/calls/inbound/export?format=pdf descarga el resultado como PDF",
+        "El frontend muestra filtros (date range, troncal dropdown, input origen, estado select) y botones Exportar Excel/PDF",
+        "Ordenamiento por columna en la tabla del frontend",
+        "Tests: filtros individuales y combinados, exportación, paginación"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 10,
+      "name": "outbound_filters_export",
+      "title": "Llamadas salientes con filtros avanzados y exportación",
+      "description": "Mejorar la vista de salientes con filtros por troncal, extensión origen y número destino. Añadir exportación a Excel y PDF.",
+      "refs": ["RF-03"],
+      "acceptance": [
+        "GET /api/calls/outbound acepta ?from=&to=&trunk=&extension=&dest= y retorna registros CDR individuales",
+        "Respuesta paginada con meta.total",
+        "Columnas: fecha/hora, extensión origen, número destino, troncal, duración, estado",
+        "GET /api/calls/outbound/export?format=xlsx|pdf descarga el resultado",
+        "El frontend muestra los filtros correspondientes + botones de exportación",
+        "Tests: filtros, exportación, paginación"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 11,
+      "name": "historical_analytics",
+      "title": "Estadísticas históricas avanzadas",
+      "description": "Análisis histórico con comparativas entre períodos, indicadores de crecimiento del tráfico, ranking de extensiones y troncales más utilizadas.",
+      "refs": ["RF-04", "CU-10", "CU-12", "CU-13"],
+      "acceptance": [
+        "GET /api/stats/historical?period=day|week|month|year|custom&from=&to= retorna agregados por período",
+        "GET /api/stats/compare?period1_from=&period1_to=&period2_from=&period2_to= retorna comparativa entre dos períodos con variación porcentual",
+        "GET /api/stats/rankings?from=&to=&type=extension|trunk&limit=10 retorna ranking de más utilizados",
+        "El frontend muestra: selector de período (día/semana/mes/año/rango), gráfico de tendencia, tabla comparativa período anterior vs actual, tabla de rankings",
+        "Tests: cada endpoint con distintos períodos, comparativa, rankings"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 12,
+      "name": "reports_module",
+      "title": "Generación de reportes PDF y Excel",
+      "description": "Módulo de reportes descargables: resumen ejecutivo, llamadas entrantes, llamadas salientes, actividad de extensiones, actividad de troncales. Incluyen logo corporativo y gráficos.",
+      "refs": ["RF-07", "CU-08"],
+      "acceptance": [
+        "GET /api/reports/:type/pdf?from=&to= genera PDF del reporte (type: executive|inbound|outbound|extensions|trunks)",
+        "GET /api/reports/:type/xlsx?from=&to= genera Excel del reporte",
+        "Los PDF incluyen: logo corporativo (si está configurado), nombre de empresa, rango de fechas, tablas y al menos un gráfico embebido",
+        "El frontend tiene pantalla de Reportes con selector de tipo, rango de fechas y botones Descargar PDF/Excel",
+        "Tests: generación de cada tipo de reporte en ambos formatos"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 13,
+      "name": "system_config",
+      "title": "Configuración del sistema (empresa, logo, tema)",
+      "description": "Pantalla de configuración para el administrador: nombre de empresa, logo corporativo, zona horaria, idioma, renombrar extensiones, ocultar canales, colores del tema.",
+      "refs": ["RF-05"],
+      "acceptance": [
+        "GET /api/admin/config retorna configuración general actual",
+        "PATCH /api/admin/config actualiza nombre empresa, zona horaria, idioma, colores del tema",
+        "POST /api/admin/config/logo acepta multipart/form-data con imagen PNG/JPG <= 2MB; la almacena en backend/uploads/",
+        "GET /api/admin/config/logo sirve el logo actual",
+        "PATCH /api/admin/extensions/:ext renombra o oculta una extensión",
+        "PATCH /api/admin/trunks/:trunk oculta/muestra una troncal",
+        "El frontend muestra la pantalla de Configuración con tabs: General | Personalización | Apariencia",
+        "Tests: actualizar cada campo, subir logo, renombrar extensión, ocultar troncal"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 14,
+      "name": "pbx_health",
+      "title": "Monitoreo de salud de la conexión PBX",
+      "description": "Endpoint y UI para mostrar el estado de la conexión con Issabel, disparar sincronización manual, y notificar cuando la conexión falla.",
+      "refs": ["RF-08", "CU-11"],
+      "acceptance": [
+        "GET /api/pbx/health retorna { connected: bool, lastCheck: ISO, lastError: string|null, latencyMs: number }",
+        "POST /api/pbx/sync dispara una sincronización/verificación manual y retorna el resultado",
+        "El backend expone un evento SSE 'pbx_status' cuando el estado de conexión cambia",
+        "El frontend muestra un indicador de estado PBX en el Layout (verde/rojo) y notificación toast cuando se desconecta",
+        "Tests: health cuando DB ok, health cuando DB falla, sync manual"
+      ],
+      "sdd": true,
+      "status": "pending"
+    },
+    {
+      "id": 15,
+      "name": "alerts_monitoring",
+      "title": "Sistema de alertas y monitoreo",
+      "description": "Reglas de alerta configurables: troncal fuera de servicio, extensión sin registrar, pico de llamadas perdidas, fallo de conexión PBX. Notificaciones en-app y por correo electrónico.",
+      "refs": ["RF-09", "CU-09", "CU-14"],
+      "acceptance": [
+        "Tabla alert_rules en SQLite: id, type, threshold, enabled, notify_email",
+        "GET /api/admin/alerts/rules retorna reglas configuradas",
+        "POST/PATCH/DELETE /api/admin/alerts/rules/:id gestiona reglas",
+        "GET /api/alerts/active retorna alertas activas no resueltas",
+        "El backend evalúa las reglas en cada ciclo de polling y persiste alertas en tabla alerts",
+        "Cuando se genera una alerta, se emite evento SSE 'alert' a todos los clientes conectados",
+        "Si la regla tiene notify_email configurado, se envía correo (nodemailer/SMTP configurable)",
+        "El frontend muestra panel de Alertas Activas con tipo, descripción, timestamp y botón Resolver",
+        "Tests: generación de alerta por umbral, notificación SSE, envío de email (mock), resolución"
+      ],
+      "sdd": true,
+      "status": "pending"
+    }
+  ]
+}

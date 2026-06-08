@@ -18,6 +18,9 @@ const mysql         = require('mysql2/promise');
 const cors          = require('cors');
 const fs            = require('fs');
 const path          = require('path');
+const { initDb }    = require('./db/setup');
+const userService   = require('./services/userService');
+const auditService  = require('./services/auditService');
 
 const CONFIG_FILE   = path.join(__dirname, 'config.json');
 const EXAMPLE_FILE  = path.join(__dirname, 'config.example.json');
@@ -287,23 +290,48 @@ async function startServer() {
     next();
   }
 
+  // ── SQLite local DB ───────────────────────────────────────────
+  const db = initDb(config);
+  app.use('/api', require('./routes/users')(pool, config, db, requireAuth, requireAdmin));
+
   // ── Auth ──────────────────────────────────────────────────────
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body || {};
     if (!username || !password)
       return res.status(400).json({ ok: false, error: 'Usuario y contraseña son requeridos' });
 
-    const user = config.users.find(u => u.username === username);
-    if (!user) return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    const user = userService.findByUsername(db, username);
+    if (!user) {
+      auditService.logAction(db, { userId: null, username, action: 'login_failed', ip: req.ip });
+      return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    }
+
+    if (user.active === 0) {
+      auditService.logAction(db, { userId: user.id, username: user.username, action: 'login_failed', ip: req.ip });
+      return res.status(401).json({ ok: false, error: 'Cuenta desactivada' });
+    }
 
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid)  return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    if (!valid) {
+      auditService.logAction(db, { userId: user.id, username: user.username, action: 'login_failed', ip: req.ip });
+      return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' });
+    }
 
     req.session.user = { id: user.id, username: user.username, role: user.role };
+    userService.updateLastLogin(db, user.id);
+    auditService.logAction(db, { userId: user.id, username: user.username, action: 'login', ip: req.ip });
     res.json({ ok: true, user: req.session.user });
   });
 
   app.post('/api/auth/logout', (req, res) => {
+    if (req.session?.user) {
+      auditService.logAction(db, {
+        userId:   req.session.user.id,
+        username: req.session.user.username,
+        action:   'logout',
+        ip:       req.ip,
+      });
+    }
     req.session.destroy(() => {
       res.clearCookie('connect.sid');
       res.json({ ok: true });
@@ -437,12 +465,7 @@ async function startServer() {
   }, pollMs);
 
   // ── Admin ──────────────────────────────────────────────────────
-  app.get('/api/admin/users', requireAdmin, (req, res) => {
-    res.json({
-      ok: true,
-      users: config.users.map(u => ({ id: u.id, username: u.username, role: u.role })),
-    });
-  });
+  // NOTE: GET /api/admin/users is now handled by the users router below.
 
   app.get('/api/config/public', (req, res) => {
     res.json({ appName: getAppName() });

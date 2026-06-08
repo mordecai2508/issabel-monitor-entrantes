@@ -1,0 +1,56 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install*)",
+      "Bash(npm run test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run build*)",
+      "Bash(npm run dev*)",
+      "Bash(node *)",
+      "Bash(./init.sh)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(cat *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(curl -s http://localhost:4000*)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(mysql*)",
+      "Bash(mysqldump*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Create",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[hook] Archivo modificado. Verificar: sin console.log de debug, sin SELECT *, sin TypeScript, sin escrituras a CDR.'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const f=require('./feature_list.json'); const ip=f.features.filter(x=>x.status==='in_progress'); if(ip.length>1){console.error('ERROR: Más de una feature in_progress: '+ip.map(x=>x.name).join(', ')); process.exit(1);}\" 2>&1 || true"
+          },
+          {
+            "type": "command",
+            "command": "git diff --quiet HEAD 2>/dev/null && echo '[hook] git: working tree limpio ✅' || echo '[hook] ⚠️  Cambios sin commitear. Si acabas de aprobar una feature: git add -A && git commit -m \"feat(<feature>): <título>\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
