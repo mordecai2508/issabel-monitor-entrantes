@@ -31,3 +31,17 @@
 - Commit: `feat(inbound_filters_export): ...` (3c67813)
 
 **Siguiente feature pendiente:** #10 `outbound_filters_export` — Llamadas salientes con filtros avanzados y exportación.
+
+---
+
+## Sesión 2026-06-08 — outbound_filters_export
+
+**Feature completada:** #10 `outbound_filters_export` — Llamadas salientes con filtros avanzados y exportación
+
+**Resumen:**
+- Spec redactada (35 requisitos, 8 tareas) y aprobada por el humano.
+- Implementación: `queryOutbound`/`queryOutboundExport` añadidos a `cdrService.js`; `exportService.js` extendido con parámetros opcionales retrocompatibles; `routes/outbound.js`; `tests/outbound.test.js`; `frontend/src/components/OutboundTable.jsx`.
+- Tests: 56/56 passing (incluye no-regresión de inbound). Build frontend: ✅. Review: APROBADO.
+- Commit: `feat(outbound_filters_export): ...` (4aecb4a)
+
+**Siguiente feature pendiente:** #11 `historical_analytics` — Estadísticas históricas avanzadas.

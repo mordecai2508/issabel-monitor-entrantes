@@ -10,18 +10,18 @@
 
 ## Feature en progreso
 
-**#10 — outbound_filters_export** ("Llamadas salientes con filtros avanzados y exportación")
+**#11 — historical_analytics** ("Estadísticas históricas avanzadas")
 
-Spec creada en `specs/outbound_filters_export/`:
-- `requirements.md` — 35 requisitos (R1–R35)
-- `design.md` — 2 endpoints nuevos, funciones nuevas en cdrService.js, reutilización de exportService.js con parámetros opcionales, OutboundTable.jsx como componente nuevo coexistiendo con OutboundView.jsx
+Spec creada en `specs/historical_analytics/`:
+- `requirements.md` — 43 requisitos (R1–R43)
+- `design.md` — 3 endpoints nuevos, SQL de agrupación temporal por period, rankings por src/channel normalizado, comparativa con variación porcentual, statsService.js nuevo, HistoricalAnalytics.jsx
 - `tasks.md` — 8 tareas (T1–T8)
 
 ## Última acción / Próximo paso
 
-- Última acción: spec_author completó la spec y se actualizó `feature_list.json` a `spec_ready`.
-- Próximo paso: **el humano revisa y aprueba la spec**. Una vez aprobada, cambiar status a `in_progress` y lanzar `implementer`.
+- Última acción: spec_author completó la spec. `feature_list.json` → `spec_ready`.
+- Próximo paso: **el humano aprueba la spec**. Una vez aprobada → `in_progress` → implementer.
 
 ## Bloqueos
 
-Esperando aprobación humana de la spec antes de implementar.
+Esperando aprobación humana.

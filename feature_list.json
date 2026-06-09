@@ -136,12 +136,13 @@
         "Tests: filtros, exportación, paginación"
       ],
       "sdd": true,
-      "status": "in_progress"
+      "status": "done"
     },
     {
       "id": 11,
       "name": "historical_analytics",
       "title": "Estadísticas históricas avanzadas",
+      "spec_ready": true,
       "description": "Análisis histórico con comparativas entre períodos, indicadores de crecimiento del tráfico, ranking de extensiones y troncales más utilizadas.",
       "refs": ["RF-04", "CU-10", "CU-12", "CU-13"],
       "acceptance": [
@@ -152,7 +153,7 @@
         "Tests: cada endpoint con distintos períodos, comparativa, rankings"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": 12,

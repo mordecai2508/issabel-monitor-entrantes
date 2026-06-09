@@ -33,4 +33,11 @@ export const api = {
   inboundCalls:     (queryString)     => req('GET',   `/api/calls/inbound?${queryString}`),
   // Outbound search
   outboundCalls:    (queryString)     => req('GET',   `/api/calls/outbound?${queryString}`),
+  // Historical analytics
+  statsHistorical: ({ period, from, to }) =>
+    req('GET', `/api/stats/historical?${new URLSearchParams({ period, from, to })}`),
+  statsCompare: ({ period1_from, period1_to, period2_from, period2_to }) =>
+    req('GET', `/api/stats/compare?${new URLSearchParams({ period1_from, period1_to, period2_from, period2_to })}`),
+  statsRankings: ({ from, to, type, limit }) =>
+    req('GET', `/api/stats/rankings?${new URLSearchParams({ from, to, type, limit })}`),
 };
