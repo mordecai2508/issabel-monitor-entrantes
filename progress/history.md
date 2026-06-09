@@ -45,3 +45,17 @@
 - Commit: `feat(outbound_filters_export): ...` (4aecb4a)
 
 **Siguiente feature pendiente:** #11 `historical_analytics` — Estadísticas históricas avanzadas.
+
+---
+
+## Sesión 2026-06-08 — historical_analytics
+
+**Feature completada:** #11 `historical_analytics` — Estadísticas históricas avanzadas
+
+**Resumen:**
+- Spec redactada (43 requisitos, 8 tareas) y aprobada por el humano.
+- Implementación: `backend/services/statsService.js`, `routes/stats.js`, `tests/stats.test.js`, `frontend/src/components/HistoricalAnalytics.jsx`.
+- Tests: 83/83 passing. Build frontend: ✅. Review: APROBADO.
+- Commit: `feat(historical_analytics): ...` (437fbde)
+
+**Siguiente feature pendiente:** #12 `reports_module` — Generación de reportes PDF y Excel.

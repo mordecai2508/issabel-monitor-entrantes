@@ -6,22 +6,16 @@
 
 ## Estado
 
-`spec_ready` — esperando aprobación humana.
+_Sin sesión activa._
 
 ## Feature en progreso
 
-**#11 — historical_analytics** ("Estadísticas históricas avanzadas")
-
-Spec creada en `specs/historical_analytics/`:
-- `requirements.md` — 43 requisitos (R1–R43)
-- `design.md` — 3 endpoints nuevos, SQL de agrupación temporal por period, rankings por src/channel normalizado, comparativa con variación porcentual, statsService.js nuevo, HistoricalAnalytics.jsx
-- `tasks.md` — 8 tareas (T1–T8)
+_Ninguna._
 
 ## Última acción / Próximo paso
 
-- Última acción: spec_author completó la spec. `feature_list.json` → `spec_ready`.
-- Próximo paso: **el humano aprueba la spec**. Una vez aprobada → `in_progress` → implementer.
+_—_
 
 ## Bloqueos
 
-Esperando aprobación humana.
+_Ninguno._
