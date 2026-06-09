@@ -110,7 +110,8 @@ export default function Layout() {
           <NavItem to="/"           icon={LayoutDashboard} label="Dashboard" />
           <NavItem to="/inbound"    icon={PhoneIncoming}   label="Entrantes" />
           <NavItem to="/inbound/search" icon={Search}     label="Búsqueda entrantes" />
-          <NavItem to="/outbound"   icon={PhoneOutgoing}   label="Salientes" />
+          <NavItem to="/outbound"        icon={PhoneOutgoing} label="Salientes" />
+          <NavItem to="/outbound/search" icon={Search}     label="Búsqueda salientes" />
           <NavItem to="/historical" icon={History}         label="Histórico" />
           {user?.role === 'admin' && (
             <>

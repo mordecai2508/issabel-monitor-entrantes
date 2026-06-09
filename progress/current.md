@@ -10,12 +10,12 @@
 
 ## Feature en progreso
 
-**#9 — inbound_filters_export** ("Llamadas entrantes con filtros avanzados y exportación")
+**#10 — outbound_filters_export** ("Llamadas salientes con filtros avanzados y exportación")
 
-Spec creada en `specs/inbound_filters_export/`:
-- `requirements.md` — 29 requisitos (R1–R29)
-- `design.md` — 2 endpoints nuevos, query CDR individual con filtros, exportService (xlsx + pdf), InboundTable.jsx como componente nuevo (coexiste con InboundView.jsx)
-- `tasks.md` — 9 tareas (T1–T9)
+Spec creada en `specs/outbound_filters_export/`:
+- `requirements.md` — 35 requisitos (R1–R35)
+- `design.md` — 2 endpoints nuevos, funciones nuevas en cdrService.js, reutilización de exportService.js con parámetros opcionales, OutboundTable.jsx como componente nuevo coexistiendo con OutboundView.jsx
+- `tasks.md` — 8 tareas (T1–T8)
 
 ## Última acción / Próximo paso
 

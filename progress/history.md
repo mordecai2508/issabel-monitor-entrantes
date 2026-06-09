@@ -16,3 +16,18 @@
 - Commit: `feat(user_management): Gestión completa de usuarios (CRUD + auditoría)` (3794298)
 
 **Siguiente feature pendiente:** #9 `inbound_filters_export` — Llamadas entrantes con filtros avanzados y exportación.
+
+---
+
+## Sesión 2026-06-08 — inbound_filters_export
+
+**Feature completada:** #9 `inbound_filters_export` — Llamadas entrantes con filtros avanzados y exportación
+
+**Resumen:**
+- Spec redactada (29 requisitos, 9 tareas) y aprobada por el humano.
+- Implementación: `backend/services/cdrService.js`, `exportService.js`, `routes/inbound.js`, `tests/inbound.test.js`, `frontend/src/components/InboundTable.jsx`.
+- Una línea de mount en `server.js`. Coexiste con `InboundView.jsx` (v1.0 intacta).
+- Tests: 39/39 passing. Build frontend: ✅. Review: APROBADO (observación: 9 RNF sin test explícito — deuda técnica menor).
+- Commit: `feat(inbound_filters_export): ...` (3c67813)
+
+**Siguiente feature pendiente:** #10 `outbound_filters_export` — Llamadas salientes con filtros avanzados y exportación.

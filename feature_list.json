@@ -118,7 +118,7 @@
         "Tests: filtros individuales y combinados, exportación, paginación"
       ],
       "sdd": true,
-      "status": "in_progress"
+      "status": "done"
     },
     {
       "id": 10,
@@ -126,6 +126,7 @@
       "title": "Llamadas salientes con filtros avanzados y exportación",
       "description": "Mejorar la vista de salientes con filtros por troncal, extensión origen y número destino. Añadir exportación a Excel y PDF.",
       "refs": ["RF-03"],
+      "spec_ready": true,
       "acceptance": [
         "GET /api/calls/outbound acepta ?from=&to=&trunk=&extension=&dest= y retorna registros CDR individuales",
         "Respuesta paginada con meta.total",
@@ -135,7 +136,7 @@
         "Tests: filtros, exportación, paginación"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": 11,

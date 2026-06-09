@@ -31,4 +31,6 @@ export const api = {
   auditLog:         ()                => req('GET',   '/api/admin/audit-log'),
   // Inbound search
   inboundCalls:     (queryString)     => req('GET',   `/api/calls/inbound?${queryString}`),
+  // Outbound search
+  outboundCalls:    (queryString)     => req('GET',   `/api/calls/outbound?${queryString}`),
 };

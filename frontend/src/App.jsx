@@ -9,6 +9,7 @@ import HistoricalView from './components/HistoricalView';
 import ChannelAliasManager from './components/ChannelAliasManager';
 import UserManagement from './components/UserManagement';
 import InboundTable from './components/InboundTable';
+import OutboundTable from './components/OutboundTable';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="inbound"   element={<InboundView />} />
         <Route path="inbound/search" element={<PrivateRoute><InboundTable /></PrivateRoute>} />
         <Route path="outbound"  element={<OutboundView />} />
+        <Route path="outbound/search" element={<PrivateRoute><OutboundTable /></PrivateRoute>} />
         <Route path="historical" element={<HistoricalView />} />
         <Route path="channels"    element={<AdminRoute><ChannelAliasManager /></AdminRoute>} />
         <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
