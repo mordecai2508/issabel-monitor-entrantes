@@ -10,12 +10,12 @@
 
 ## Feature en progreso
 
-**#8 — user_management** ("Gestión completa de usuarios (CRUD + auditoría)")
+**#9 — inbound_filters_export** ("Llamadas entrantes con filtros avanzados y exportación")
 
-Spec creada en `specs/user_management/`:
-- `requirements.md` — 30 requisitos (R1–R30)
-- `design.md` — endpoints, esquema SQLite, lógica de migración, componentes frontend
-- `tasks.md` — 10 tareas (T1–T10)
+Spec creada en `specs/inbound_filters_export/`:
+- `requirements.md` — 29 requisitos (R1–R29)
+- `design.md` — 2 endpoints nuevos, query CDR individual con filtros, exportService (xlsx + pdf), InboundTable.jsx como componente nuevo (coexiste con InboundView.jsx)
+- `tasks.md` — 9 tareas (T1–T9)
 
 ## Última acción / Próximo paso
 

@@ -29,4 +29,6 @@ export const api = {
   updateUser:       (id, data)        => req('PATCH', `/api/admin/users/${id}`, data),
   resetPassword:    (id)              => req('POST',  `/api/admin/users/${id}/reset-password`),
   auditLog:         ()                => req('GET',   '/api/admin/audit-log'),
+  // Inbound search
+  inboundCalls:     (queryString)     => req('GET',   `/api/calls/inbound?${queryString}`),
 };

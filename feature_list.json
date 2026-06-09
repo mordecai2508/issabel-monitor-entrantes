@@ -98,7 +98,7 @@
         "Tests: CRUD completo, auditoría, acceso denegado a operador"
       ],
       "sdd": true,
-      "status": "in_progress"
+      "status": "done"
     },
     {
       "id": 9,
@@ -106,6 +106,7 @@
       "title": "Llamadas entrantes con filtros avanzados y exportación",
       "description": "Mejorar la vista de entrantes con filtros por troncal, número origen y estado de llamada. Añadir exportación a Excel (xlsx) y PDF.",
       "refs": ["RF-02", "CU-08"],
+      "spec_ready": true,
       "acceptance": [
         "GET /api/calls/inbound acepta ?from=&to=&trunk=&origin=&disposition= y retorna registros individuales del CDR (no agregados)",
         "Respuesta paginada: ?page=1&limit=100; incluye meta.total",
@@ -117,7 +118,7 @@
         "Tests: filtros individuales y combinados, exportación, paginación"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": 10,

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Phone, LayoutDashboard, History,
   LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
-  PhoneIncoming, PhoneOutgoing, Users,
+  PhoneIncoming, PhoneOutgoing, Users, Search,
 } from 'lucide-react';
 import { api } from '../api';
 
@@ -109,6 +109,7 @@ export default function Layout() {
           <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2">Monitoreo</p>
           <NavItem to="/"           icon={LayoutDashboard} label="Dashboard" />
           <NavItem to="/inbound"    icon={PhoneIncoming}   label="Entrantes" />
+          <NavItem to="/inbound/search" icon={Search}     label="Búsqueda entrantes" />
           <NavItem to="/outbound"   icon={PhoneOutgoing}   label="Salientes" />
           <NavItem to="/historical" icon={History}         label="Histórico" />
           {user?.role === 'admin' && (

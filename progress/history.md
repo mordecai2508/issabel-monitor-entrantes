@@ -1,0 +1,18 @@
+# progress/history.md — Bitácora de sesiones
+
+> Archivo append-only. Agregar al final al cerrar cada sesión.
+
+---
+
+## Sesión 2026-06-08 — user_management
+
+**Feature completada:** #8 `user_management` — Gestión completa de usuarios (CRUD + auditoría)
+
+**Resumen:**
+- Spec redactada (30 requisitos, 10 tareas) y aprobada por el humano.
+- Implementación: `backend/db/setup.js`, `userService.js`, `auditService.js`, `routes/users.js`, `tests/users.test.js`, `frontend/src/components/UserManagement.jsx`.
+- Modificaciones mínimas a `server.js`: mounting del router, login/logout migrados a SQLite + auditoría.
+- Tests: 24/24 passing. Build frontend: ✅. Review: APROBADO.
+- Commit: `feat(user_management): Gestión completa de usuarios (CRUD + auditoría)` (3794298)
+
+**Siguiente feature pendiente:** #9 `inbound_filters_export` — Llamadas entrantes con filtros avanzados y exportación.

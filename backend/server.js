@@ -21,6 +21,7 @@ const path          = require('path');
 const { initDb }    = require('./db/setup');
 const userService   = require('./services/userService');
 const auditService  = require('./services/auditService');
+const inboundRouter = require('./routes/inbound');
 
 const CONFIG_FILE   = path.join(__dirname, 'config.json');
 const EXAMPLE_FILE  = path.join(__dirname, 'config.example.json');
@@ -293,6 +294,7 @@ async function startServer() {
   // ── SQLite local DB ───────────────────────────────────────────
   const db = initDb(config);
   app.use('/api', require('./routes/users')(pool, config, db, requireAuth, requireAdmin));
+  app.use('/api', inboundRouter(pool, config, requireAuth, extractChannel));
 
   // ── Auth ──────────────────────────────────────────────────────
   app.post('/api/auth/login', async (req, res) => {
