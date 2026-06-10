@@ -25,6 +25,7 @@ const inboundRouter  = require('./routes/inbound');
 const outboundRouter = require('./routes/outbound');
 const statsRouter    = require('./routes/stats');
 const reportsRouter  = require('./routes/reports');
+const configRouter   = require('./routes/config');
 
 const CONFIG_FILE   = path.join(__dirname, 'config.json');
 const EXAMPLE_FILE  = path.join(__dirname, 'config.example.json');
@@ -301,6 +302,7 @@ async function startServer() {
   app.use('/api', outboundRouter(pool, config, requireAuth, extractChannel));
   app.use('/api', statsRouter(pool, config, requireAuth));
   app.use('/api', reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk));
+  app.use('/api', configRouter(pool, config, db, requireAuth, requireAdmin, getAppName));
 
   // ── Auth ──────────────────────────────────────────────────────
   app.post('/api/auth/login', async (req, res) => {

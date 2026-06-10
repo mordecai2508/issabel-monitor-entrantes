@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Phone, LayoutDashboard, History,
   LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
-  PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2, FileText,
+  PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2, FileText, Settings,
 } from 'lucide-react';
 import { api } from '../api';
 
@@ -120,6 +120,7 @@ export default function Layout() {
               <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2 mt-4">Admin</p>
               <NavItem to="/channels"    icon={PhoneCall} label="Canales" />
               <NavItem to="/admin/users" icon={Users}     label="Usuarios" />
+              <NavItem to="/admin/config" icon={Settings} label="Configuración" />
             </>
           )}
         </nav>

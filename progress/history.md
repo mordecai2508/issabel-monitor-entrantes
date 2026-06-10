@@ -74,3 +74,18 @@
 - Commit: `feat(reports_module): Generación de reportes PDF y Excel`
 
 **Siguiente feature pendiente:** #13 `system_config` — Configuración del sistema (empresa, logo, tema).
+
+---
+
+## Sesión 2026-06-10 — system_config
+
+**Feature completada:** #13 `system_config` — Configuración del sistema (empresa, logo, tema)
+
+**Resumen:**
+- Spec redactada (R1–R42, 8 endpoints `/api/admin/config*`, `/api/admin/extensions*`, `/api/admin/trunks*`, 3 tablas SQLite nuevas, 1 dep npm nueva: `multer`, 11 tasks) y aprobada por el humano.
+- Implementación: `backend/services/configService.js`, `backend/routes/config.js`, `backend/tests/config.test.js`, `frontend/src/components/SystemConfig.jsx`. `backend/db/setup.js` extendido con `system_config`/`extensions_config`/`trunks_config` (`CREATE TABLE IF NOT EXISTS`, sin tocar `users`/`audit_log`). Una línea de mount en `server.js`. `frontend/src/api.js`/`App.jsx`/`Layout.jsx` con nuevas funciones, ruta `/admin/config` (admin-only) y NavItem "Configuración".
+- Capa additiva: `config.json` (`app.name`, `channelAliases`, `channels`, feature #6) sin cambios; `GET /api/admin/config` hace fallback de solo lectura a `getAppName()`. `system_config.companyName`/`logoPath` ya son consumidos por `reportService.getBranding` (#12, sin modificar) — al configurar empresa/logo aquí, los reportes los reflejan automáticamente.
+- Tests: 180/180 passing (50/50 en config.test.js, sin regresión). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
+- Commit: `feat(system_config): Configuración del sistema (empresa, logo, tema)`
+
+**Siguiente feature pendiente:** #14 `pbx_health` — Monitoreo de salud del PBX.

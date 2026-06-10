@@ -53,4 +53,21 @@ export const api = {
     const match = cd.match(/filename="(.+)"/);
     return { blob, filename: match ? match[1] : `reporte.${format}` };
   },
+  // System configuration (admin)
+  adminConfig:       ()      => req('GET',   '/api/admin/config'),
+  updateAdminConfig: (data)  => req('PATCH', '/api/admin/config', data),
+  uploadLogo:        (file)  => {
+    const formData = new FormData();
+    formData.append('logo', file);
+    return fetch(`${BASE}/api/admin/config/logo`, { method: 'POST', credentials: 'include', body: formData })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        return data;
+      });
+  },
+  adminExtensions:   ()                  => req('GET',   '/api/admin/extensions'),
+  updateExtension:   (ext, data)         => req('PATCH', `/api/admin/extensions/${encodeURIComponent(ext)}`, data),
+  adminTrunks:       ()                  => req('GET',   '/api/admin/trunks'),
+  updateTrunkVisibility: (trunk, hidden) => req('PATCH', `/api/admin/trunks/${encodeURIComponent(trunk)}`, { hidden }),
 };

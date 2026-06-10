@@ -217,6 +217,7 @@
       "refs": [
         "RF-05"
       ],
+      "spec_ready": true,
       "acceptance": [
         "GET /api/admin/config retorna configuración general actual",
         "PATCH /api/admin/config actualiza nombre empresa, zona horaria, idioma, colores del tema",
@@ -228,7 +229,7 @@
         "Tests: actualizar cada campo, subir logo, renombrar extensión, ocultar troncal"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 14,

@@ -49,6 +49,31 @@ function initDb(config) {
     ON audit_log (timestamp DESC)
   `);
 
+  // ── system_config table (key-value, system_config feature) ─────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_config (
+      key   TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `);
+
+  // ── extensions_config table (per-extension overrides) ──────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS extensions_config (
+      extension    TEXT PRIMARY KEY,
+      display_name TEXT,
+      hidden       INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1))
+    )
+  `);
+
+  // ── trunks_config table (trunk visibility overrides) ────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trunks_config (
+      trunk  TEXT PRIMARY KEY,
+      hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1))
+    )
+  `);
+
   // ── migrate users from config.json → SQLite ────────────────────
   const insert = db.prepare(
     `INSERT OR IGNORE INTO users (id, username, password, role, active)
