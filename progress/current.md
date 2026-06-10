@@ -10,8 +10,8 @@ Sin sesión activa.
 
 ## Feature en progreso
 
-_Ninguna._ Última feature completada: #16 `dashboard_kpi_breakdown` (done,
-commit `feat(dashboard_kpi_breakdown): ...`).
+_Ninguna._ Última feature completada: #17 `dashboard_lost_destinations` (done,
+commit `feat(dashboard_lost_destinations): ...`).
 
 ## Última acción / Próximo paso
 

@@ -110,4 +110,33 @@ usuario para ejecutarse antes de #14 `pbx_health` y #15 `alerts_monitoring`
 - Tests backend: 180/180 passing (sin regresión, no se tocó backend). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
 - Commit: `feat(dashboard_kpi_breakdown): Corrección de KPI 'Perdidas' y desglose entrante/saliente en el dashboard`
 
+**Siguiente feature pendiente:** #17 `dashboard_lost_destinations` (priorizada por el usuario justo después de #16, antes de #14/#15) — Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations.
+
+---
+
+## Sesión 2026-06-10 — dashboard_lost_destinations
+
+**Feature completada:** #17 `dashboard_lost_destinations` — Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations (reclasificación)
+
+**Origen:** Solicitud del usuario (no estaba en `feature_list.json` original):
+"Para las llamadas perdidas también debe tener en cuenta las que tienen como
+canal de destino 's','hang','hangup'" — refinamiento directo de #16, hecho
+inmediatamente después de su commit. Priorizada justo después de #16, antes de
+#14/#15 (reordenada en el array `features`, ids sin cambios: ...13, 16, 17,
+14, 15).
+
+**Decisión de diseño confirmada por el usuario** (vía AskUserQuestion):
+reclasificación — una llamada con `disposition` ∈ {ANSWERED, BUSY, FAILED} y
+`dst` ∈ `config.lostDestinations` se resta de su categoría original y se suma
+a "Perdidas" (`dispositions['NO ANSWER']`), preservando exactamente
+`Total = Contestadas + Perdidas + Ocupado + Fallidas` (R2 de #16).
+
+**Resumen:**
+- Spec redactada (R1–R23, 0 endpoints/tablas/deps nuevas, 7 tasks) y aprobada por el humano.
+- Implementación: único cambio funcional en `backend/server.js` — `queryStats` ahora agrupa también por `dst` (`GROUP BY channel, dst, disposition`), recibe `lostDests` (default `['s','hang','hangup']`, mismo default que `queryQueues`) y reclasifica por fila: si `disposition` ∈ {ANSWERED,BUSY,FAILED} y `dst` ∈ `lostDests` → cuenta en `'NO ANSWER'` en vez de su bucket original; si ya era `NO ANSWER`, sin doble conteo. `total` no cambia (R10). `fetchData` pasa `lostDests` a las 3 invocaciones de `queryStats` (general/in/out), por lo que `/api/calls/today`, `/api/calls/range` y SSE init/update quedan cubiertos.
+- Sin cambios de payload (mismas claves `dispositions`/`total`) → `Dashboard.jsx` (#16) no requirió cambios de lógica. Cambio cosmético opcional aplicado: tarjeta "Perdidas" `sub="sin atender, del total"` → `sub="no efectivas, del total"`.
+- `queryQueues`/`__lost__` (bloque de colas, #16 R7/R8) sin cambios — coexiste sin conflicto. `queryChannels`/`queryHourly` (ChannelTable/HourlyChart) quedan sin cambios, documentado como limitación conocida (pueden diferir levemente de la tarjeta "Perdidas"; `DispositionChart` sí queda consistente).
+- Tests: 195/195 passing (15 nuevos en `dashboard_lost_destinations.test.js`, sin regresión sobre 180/180 previos). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO (incluyó verificación de equivalencia copia-local-test vs. implementación real).
+- Commit: `feat(dashboard_lost_destinations): Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations`
+
 **Siguiente feature pendiente:** #14 `pbx_health` — Monitoreo de salud del PBX.

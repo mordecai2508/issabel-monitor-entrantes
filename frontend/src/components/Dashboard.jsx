@@ -136,7 +136,7 @@ export default function Dashboard() {
             <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}  color="green"
               sub="del total" pct={answeredPct} />
             <StatCard label="Perdidas"       value={noAnswer}  icon={PhoneMissed} color="red"
-              sub="sin atender, del total" pct={lostPct} />
+              sub="no efectivas, del total" pct={lostPct} />
           </div>
 
           {/* Ocupado + Fallidas + resumen de duración/canales */}

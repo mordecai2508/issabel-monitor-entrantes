@@ -81,17 +81,18 @@ function passesFilter(channel, allowedChannels, direction) {
   return true;
 }
 
-async function queryStats(pool, from, to, allowedChannels, direction = 'in') {
+async function queryStats(pool, from, to, allowedChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
+       dst,
        disposition,
        COUNT(*)                    AS count,
        COALESCE(SUM(duration), 0)  AS total_duration,
        COALESCE(SUM(billsec), 0)   AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, disposition`,
+     GROUP BY channel, dst, disposition`,
     [from, to]
   );
 
@@ -106,10 +107,17 @@ async function queryStats(pool, from, to, allowedChannels, direction = 'in') {
   for (const r of rows) {
     if (!passesFilter(r.channel, allowedChannels, direction)) continue;
     const d = r.disposition.toUpperCase();
-    if (base[d]) {
-      base[d].count          += Number(r.count);
-      base[d].total_duration += Number(r.total_duration);
-      base[d].total_billsec  += Number(r.total_billsec);
+    const isLostDst = lostDests.includes(r.dst);
+
+    let targetKey = base[d] ? d : null;
+    if (isLostDst && targetKey && targetKey !== 'NO ANSWER') {
+      targetKey = 'NO ANSWER';
+    }
+
+    if (targetKey) {
+      base[targetKey].count          += Number(r.count);
+      base[targetKey].total_duration += Number(r.total_duration);
+      base[targetKey].total_billsec  += Number(r.total_billsec);
     }
     total += Number(r.count);
   }
@@ -367,13 +375,13 @@ async function startServer() {
       outStats, outChannels,
       queues,
     ] = await Promise.all([
-      queryStats(pool, from, to, allowedChannels, null),
+      queryStats(pool, from, to, allowedChannels, null,  lostDests),
       queryChannels(pool, from, to, allowedChannels, null),
       queryHourly(pool, from, to, allowedChannels, null),
-      queryStats(pool, from, to, allowedChannels, 'in'),
+      queryStats(pool, from, to, allowedChannels, 'in',  lostDests),
       queryChannels(pool, from, to, allowedChannels, 'in'),
       queryHourly(pool, from, to, allowedChannels, 'in'),
-      queryStats(pool, from, to, allowedChannels, 'out'),
+      queryStats(pool, from, to, allowedChannels, 'out', lostDests),
       queryChannels(pool, from, to, allowedChannels, 'out'),
       queryQueues(pool, from, to, allowedChannels, configQueues, lostDests),
     ]);

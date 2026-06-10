@@ -252,6 +252,25 @@
       "status": "done"
     },
     {
+      "id": 17,
+      "name": "dashboard_lost_destinations",
+      "title": "Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations (reclasificación)",
+      "description": "La tarjeta 'Perdidas' del dashboard (feature #16) se calcula hoy como dispositions['NO ANSWER'].count. Esta feature amplía el criterio: una llamada también cuenta como 'Perdidas' si su campo dst está en config.lostDestinations (por defecto ['s','hang','hangup'], ya usado hoy por queryQueues/__lost__), sin importar su disposition. Para mantener Total = Contestadas + Perdidas + Ocupado + Fallidas (R2 de #16), las llamadas con dst en esa lista y disposition distinto de 'NO ANSWER' (p.ej. ANSWERED/BUSY/FAILED) se reclasifican: se restan de su categoría de disposición original y se suman a 'Perdidas' (sin doble conteo si ya eran NO ANSWER). Requiere modificar queryStats en backend/server.js (hoy agrupa solo por channel, disposition; necesita también dst y acceso a config.lostDestinations).",
+      "refs": ["RF-01"],
+      "spec_ready": true,
+      "acceptance": [
+        "queryStats agrupa también por dst y aplica config.lostDestinations (default ['s','hang','hangup']) para reclasificar hacia 'Perdidas' los registros con dst en esa lista, sin importar su disposition original",
+        "Una llamada con disposition='ANSWERED' y dst='hang' se resta de 'Contestadas' y se suma a 'Perdidas'; Total = Contestadas + Perdidas + Ocupado + Fallidas sigue cuadrando exactamente",
+        "Una llamada con disposition='NO ANSWER' y dst en lostDestinations se cuenta una sola vez en 'Perdidas' (sin doble conteo)",
+        "config.lostDestinations es configurable (igual que hoy lo usa queryQueues); si no está definido, usa el default ['s','hang','hangup']",
+        "El payload de /api/calls/today, /api/calls/range y los eventos SSE init/update reflejan la reclasificación de forma consistente",
+        "El spec documenta si ChannelTable/HourlyChart/DispositionChart (queryChannels/queryHourly, que agregan por separado) quedan o no consistentes con la nueva definición de 'Perdidas'; si no es trivial extenderlos, se documenta como limitación conocida",
+        "Tests: reclasificación con disposition=ANSWERED/BUSY/FAILED + dst en lostDestinations, sin doble conteo con NO ANSWER, reconciliación Total=suma de las 4 categorías, comportamiento con config.lostDestinations vacío/custom"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
       "id": 14,
       "name": "pbx_health",
       "title": "Monitoreo de salud de la conexión PBX",
