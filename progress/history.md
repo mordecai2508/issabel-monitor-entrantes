@@ -59,3 +59,18 @@
 - Commit: `feat(historical_analytics): ...` (437fbde)
 
 **Siguiente feature pendiente:** #12 `reports_module` — Generación de reportes PDF y Excel.
+
+---
+
+## Sesión 2026-06-10 — reports_module
+
+**Feature completada:** #12 `reports_module` — Generación de reportes PDF y Excel
+
+**Resumen:**
+- Spec redactada (R1–R39, 2 endpoints genéricos `/api/reports/:type/{pdf,xlsx}`, 0 deps npm nuevas, 12 tasks) y aprobada por el humano.
+- Implementación: `backend/services/reportService.js`, `backend/services/reportConstants.js`, extensión de `exportService.js` (drawBarChart, buildReportPdf, buildReportXlsx), `routes/reports.js`, `tests/reports.test.js`, `frontend/src/components/ReportsModule.jsx`. Una línea de mount en `server.js`. `routes/outbound.js` solo importa constantes compartidas (sin cambio de comportamiento).
+- Sin tablas SQLite nuevas; branding/logo lee `system_config` de forma defensiva (feature #13 aún pendiente) con fallback a `appName`.
+- Tests: 130/130 passing (47/47 en reports.test.js, sin regresión). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
+- Commit: `feat(reports_module): Generación de reportes PDF y Excel`
+
+**Siguiente feature pendiente:** #13 `system_config` — Configuración del sistema (empresa, logo, tema).

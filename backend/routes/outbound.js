@@ -3,13 +3,14 @@
 const express       = require('express');
 const cdrService    = require('../services/cdrService');
 const exportService = require('../services/exportService');
+const {
+  OUTBOUND_XLSX_HEADERS,
+  OUTBOUND_PDF_HEADERS,
+  OUTBOUND_ROW_KEYS,
+} = require('../services/reportConstants');
 
 const ALLOWED_DISPOSITIONS = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-const OUTBOUND_XLSX_HEADERS = ['Fecha/Hora', 'Extensión', 'Destino', 'Troncal', 'Duración (s)', 'Seg. facturados', 'Estado'];
-const OUTBOUND_PDF_HEADERS  = ['Fecha/Hora', 'Extensión', 'Destino', 'Troncal', 'Duración (s)', 'Seg. fact.', 'Estado'];
-const OUTBOUND_ROW_KEYS     = ['calldate', 'src', 'dst', 'dstchannel', 'duration', 'billsec', 'disposition'];
 
 /**
  * Validate that a string is in YYYY-MM-DD format.

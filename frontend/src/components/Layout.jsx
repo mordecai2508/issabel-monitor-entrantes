@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Phone, LayoutDashboard, History,
   LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
-  PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2,
+  PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2, FileText,
 } from 'lucide-react';
 import { api } from '../api';
 
@@ -114,6 +114,7 @@ export default function Layout() {
           <NavItem to="/outbound/search" icon={Search}     label="Búsqueda salientes" />
           <NavItem to="/historical"           icon={History}    label="Histórico" />
           <NavItem to="/historical/analytics" icon={BarChart2} label="Analytics" />
+          <NavItem to="/reports" icon={FileText} label="Reportes" />
           {user?.role === 'admin' && (
             <>
               <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2 mt-4">Admin</p>

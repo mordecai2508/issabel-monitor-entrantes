@@ -11,6 +11,7 @@ import UserManagement from './components/UserManagement';
 import InboundTable from './components/InboundTable';
 import OutboundTable from './components/OutboundTable';
 import HistoricalAnalytics from './components/HistoricalAnalytics';
+import ReportsModule from './components/ReportsModule';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="outbound/search" element={<PrivateRoute><OutboundTable /></PrivateRoute>} />
         <Route path="historical" element={<HistoricalView />} />
         <Route path="historical/analytics" element={<PrivateRoute><HistoricalAnalytics /></PrivateRoute>} />
+        <Route path="reports" element={<PrivateRoute><ReportsModule /></PrivateRoute>} />
         <Route path="channels"    element={<AdminRoute><ChannelAliasManager /></AdminRoute>} />
         <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
       </Route>

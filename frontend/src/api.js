@@ -40,4 +40,17 @@ export const api = {
     req('GET', `/api/stats/compare?${new URLSearchParams({ period1_from, period1_to, period2_from, period2_to })}`),
   statsRankings: ({ from, to, type, limit }) =>
     req('GET', `/api/stats/rankings?${new URLSearchParams({ from, to, type, limit })}`),
+  // Reports
+  reportDownload: async ({ type, from, to, format }) => {
+    const params = new URLSearchParams({ from, to });
+    const res = await fetch(`${BASE}/api/reports/${type}/${format}?${params}`, { credentials: 'include' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="(.+)"/);
+    return { blob, filename: match ? match[1] : `reporte.${format}` };
+  },
 };

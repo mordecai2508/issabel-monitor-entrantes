@@ -7,7 +7,13 @@
     "require_tests_to_close": true,
     "require_approved_spec_to_implement": true,
     "require_git_commit_before_next": true,
-    "valid_status": ["pending", "spec_ready", "in_progress", "done", "blocked"]
+    "valid_status": [
+      "pending",
+      "spec_ready",
+      "in_progress",
+      "done",
+      "blocked"
+    ]
   },
   "features": [
     {
@@ -15,7 +21,11 @@
       "name": "auth_session",
       "title": "Autenticación por sesión (login/logout/me)",
       "description": "Login con usuario+contraseña, sesión httpOnly, middleware requireAuth/requireAdmin, auto-hash de contraseñas al arrancar.",
-      "refs": ["RF-06", "RNF-01", "CU-06"],
+      "refs": [
+        "RF-06",
+        "RNF-01",
+        "CU-06"
+      ],
       "sdd": false,
       "status": "done",
       "note": "Implementado en backend/server.js. Usuarios en config.json."
@@ -25,7 +35,9 @@
       "name": "dashboard_today",
       "title": "Dashboard principal con estadísticas del día",
       "description": "KPIs de llamadas (totales, contestadas, perdidas, fallidas), gráfico por hora, distribución por canal, contestadas vs perdidas. SSE para actualización automática cada 30 s.",
-      "refs": ["RF-01"],
+      "refs": [
+        "RF-01"
+      ],
       "sdd": false,
       "status": "done",
       "note": "Dashboard.jsx + HourlyChart + DispositionChart + StatCard. SSE en useSSE.js."
@@ -35,7 +47,9 @@
       "name": "inbound_view_basic",
       "title": "Vista básica de llamadas entrantes con tabla de canales",
       "description": "Tabla de llamadas entrantes por canal con totales de contestadas, perdidas, fallidas y ocupadas. Filtro por rango de fechas.",
-      "refs": ["RF-02"],
+      "refs": [
+        "RF-02"
+      ],
       "sdd": false,
       "status": "done",
       "note": "InboundView.jsx + ChannelTable.jsx. Endpoint /api/calls/range."
@@ -45,7 +59,9 @@
       "name": "outbound_view_basic",
       "title": "Vista básica de llamadas salientes",
       "description": "Tabla de llamadas salientes por canal con filtro de fechas.",
-      "refs": ["RF-03"],
+      "refs": [
+        "RF-03"
+      ],
       "sdd": false,
       "status": "done",
       "note": "OutboundView.jsx. Mismo endpoint /api/calls/range con direction=out."
@@ -55,7 +71,9 @@
       "name": "historical_view_basic",
       "title": "Vista histórica básica con selector de rango",
       "description": "Consulta de estadísticas por rango de fechas personalizado.",
-      "refs": ["RF-04"],
+      "refs": [
+        "RF-04"
+      ],
       "sdd": false,
       "status": "done",
       "note": "HistoricalView.jsx."
@@ -65,7 +83,9 @@
       "name": "channel_alias",
       "title": "Gestión de alias de canales/troncales",
       "description": "Admin puede renombrar canales (troncales) con un alias visible en toda la UI.",
-      "refs": ["RF-05"],
+      "refs": [
+        "RF-05"
+      ],
       "sdd": false,
       "status": "done",
       "note": "ChannelAliasManager.jsx. Endpoints PUT /api/admin/channels/:channel."
@@ -85,7 +105,11 @@
       "name": "user_management",
       "title": "Gestión completa de usuarios (CRUD + auditoría)",
       "description": "Migrar usuarios de config.json a tabla SQLite local. Admin puede crear, editar, desactivar y restablecer contraseñas. Registro de auditoría de accesos (login/logout + IP + timestamp). Operadores solo tienen acceso a consultas.",
-      "refs": ["RF-06", "RNF-01", "CU-07"],
+      "refs": [
+        "RF-06",
+        "RNF-01",
+        "CU-07"
+      ],
       "acceptance": [
         "GET /api/admin/users lista usuarios con id, username, role, active, last_login",
         "POST /api/admin/users crea usuario (admin/operador); devuelve 201",
@@ -105,7 +129,10 @@
       "name": "inbound_filters_export",
       "title": "Llamadas entrantes con filtros avanzados y exportación",
       "description": "Mejorar la vista de entrantes con filtros por troncal, número origen y estado de llamada. Añadir exportación a Excel (xlsx) y PDF.",
-      "refs": ["RF-02", "CU-08"],
+      "refs": [
+        "RF-02",
+        "CU-08"
+      ],
       "spec_ready": true,
       "acceptance": [
         "GET /api/calls/inbound acepta ?from=&to=&trunk=&origin=&disposition= y retorna registros individuales del CDR (no agregados)",
@@ -125,7 +152,9 @@
       "name": "outbound_filters_export",
       "title": "Llamadas salientes con filtros avanzados y exportación",
       "description": "Mejorar la vista de salientes con filtros por troncal, extensión origen y número destino. Añadir exportación a Excel y PDF.",
-      "refs": ["RF-03"],
+      "refs": [
+        "RF-03"
+      ],
       "spec_ready": true,
       "acceptance": [
         "GET /api/calls/outbound acepta ?from=&to=&trunk=&extension=&dest= y retorna registros CDR individuales",
@@ -144,7 +173,12 @@
       "title": "Estadísticas históricas avanzadas",
       "spec_ready": true,
       "description": "Análisis histórico con comparativas entre períodos, indicadores de crecimiento del tráfico, ranking de extensiones y troncales más utilizadas.",
-      "refs": ["RF-04", "CU-10", "CU-12", "CU-13"],
+      "refs": [
+        "RF-04",
+        "CU-10",
+        "CU-12",
+        "CU-13"
+      ],
       "acceptance": [
         "GET /api/stats/historical?period=day|week|month|year|custom&from=&to= retorna agregados por período",
         "GET /api/stats/compare?period1_from=&period1_to=&period2_from=&period2_to= retorna comparativa entre dos períodos con variación porcentual",
@@ -160,7 +194,11 @@
       "name": "reports_module",
       "title": "Generación de reportes PDF y Excel",
       "description": "Módulo de reportes descargables: resumen ejecutivo, llamadas entrantes, llamadas salientes, actividad de extensiones, actividad de troncales. Incluyen logo corporativo y gráficos.",
-      "refs": ["RF-07", "CU-08"],
+      "refs": [
+        "RF-07",
+        "CU-08"
+      ],
+      "spec_ready": true,
       "acceptance": [
         "GET /api/reports/:type/pdf?from=&to= genera PDF del reporte (type: executive|inbound|outbound|extensions|trunks)",
         "GET /api/reports/:type/xlsx?from=&to= genera Excel del reporte",
@@ -169,14 +207,16 @@
         "Tests: generación de cada tipo de reporte en ambos formatos"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 13,
       "name": "system_config",
       "title": "Configuración del sistema (empresa, logo, tema)",
       "description": "Pantalla de configuración para el administrador: nombre de empresa, logo corporativo, zona horaria, idioma, renombrar extensiones, ocultar canales, colores del tema.",
-      "refs": ["RF-05"],
+      "refs": [
+        "RF-05"
+      ],
       "acceptance": [
         "GET /api/admin/config retorna configuración general actual",
         "PATCH /api/admin/config actualiza nombre empresa, zona horaria, idioma, colores del tema",
@@ -195,7 +235,10 @@
       "name": "pbx_health",
       "title": "Monitoreo de salud de la conexión PBX",
       "description": "Endpoint y UI para mostrar el estado de la conexión con Issabel, disparar sincronización manual, y notificar cuando la conexión falla.",
-      "refs": ["RF-08", "CU-11"],
+      "refs": [
+        "RF-08",
+        "CU-11"
+      ],
       "acceptance": [
         "GET /api/pbx/health retorna { connected: bool, lastCheck: ISO, lastError: string|null, latencyMs: number }",
         "POST /api/pbx/sync dispara una sincronización/verificación manual y retorna el resultado",
@@ -211,7 +254,11 @@
       "name": "alerts_monitoring",
       "title": "Sistema de alertas y monitoreo",
       "description": "Reglas de alerta configurables: troncal fuera de servicio, extensión sin registrar, pico de llamadas perdidas, fallo de conexión PBX. Notificaciones en-app y por correo electrónico.",
-      "refs": ["RF-09", "CU-09", "CU-14"],
+      "refs": [
+        "RF-09",
+        "CU-09",
+        "CU-14"
+      ],
       "acceptance": [
         "Tabla alert_rules en SQLite: id, type, threshold, enabled, notify_email",
         "GET /api/admin/alerts/rules retorna reglas configuradas",
