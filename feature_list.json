@@ -232,6 +232,26 @@
       "status": "done"
     },
     {
+      "id": 16,
+      "name": "dashboard_kpi_breakdown",
+      "title": "Corrección de KPI 'Perdidas' y desglose entrante/saliente en el dashboard",
+      "description": "El dashboard principal muestra 'Total llamadas' y 'Contestadas', pero la tarjeta 'Perdidas' se calcula a partir de queryQueues (config.queues/lostDestinations) y no de las disposiciones reales del CDR, por lo que no reconcilia con el total (puede mostrar 0 si config.queues no está configurado). Corregir 'Perdidas' para que refleje las llamadas no contestadas (NO ANSWER y/o BUSY) del CDR, de modo que Total = Contestadas + Perdidas + Fallidas (+ Ocupado si aplica) sea consistente. Adicionalmente, mostrar en el dashboard el desglose del total de llamadas entre entrantes y salientes (datos ya disponibles vía inbound.stats.total / outbound.stats.total en /api/calls/today y SSE).",
+      "refs": [
+        "RF-01"
+      ],
+      "spec_ready": true,
+      "acceptance": [
+        "La tarjeta 'Perdidas' del dashboard se calcula a partir de las disposiciones del CDR (NO ANSWER y/o BUSY), no del cálculo basado en queryQueues/__lost__",
+        "Total llamadas = Contestadas + Perdidas + Fallidas (+ Ocupado si se muestra por separado), de forma verificable",
+        "'Perdidas' muestra un valor correcto incluso cuando config.queues está vacío o no configurado",
+        "El bloque de colas (__lost__/QueueCard) existente, cuando config.queues está configurado, se mantiene sin romper",
+        "El dashboard muestra el desglose del total de llamadas entre 'Entrantes' y 'Salientes' (p. ej. nuevas StatCard o sub-indicador junto a 'Total llamadas')",
+        "Tests: cálculo de 'Perdidas' con y sin config.queues configurado, reconciliación Total = suma de disposiciones, presencia del desglose entrante/saliente"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
       "id": 14,
       "name": "pbx_health",
       "title": "Monitoreo de salud de la conexión PBX",

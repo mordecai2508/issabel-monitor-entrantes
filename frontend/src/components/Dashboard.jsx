@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   Phone, PhoneOff, PhoneMissed, AlertTriangle, PhoneCall,
+  PhoneIncoming, PhoneOutgoing,
   Wifi, WifiOff, RefreshCw, Users,
 } from 'lucide-react';
 import { StatCard } from './StatCard';
@@ -80,7 +81,21 @@ export default function Dashboard() {
   const hourly         = data?.hourly   ?? [];
   const queues         = data?.queues   ?? [];
   const channelAliases = data?.channelAliases ?? {};
-  const lostTotal      = queues.find(q => q.queue === '__lost__')?.total ?? 0;
+
+  const answered = disp?.ANSWERED?.count   ?? 0;
+  const noAnswer = disp?.['NO ANSWER']?.count ?? 0;
+  const busy     = disp?.BUSY?.count       ?? 0;
+  const failed   = disp?.FAILED?.count     ?? 0;
+
+  const answeredPct = disp?.ANSWERED?.pct     ?? 0;
+  const lostPct     = disp?.['NO ANSWER']?.pct ?? 0;
+  const busyPct     = disp?.BUSY?.pct          ?? 0;
+  const failedPct   = disp?.FAILED?.pct        ?? 0;
+
+  const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
+  const outboundTotal = data?.outbound?.stats?.total ?? 0;
+  const inboundPct  = total > 0 ? Math.round((inboundTotal  / total) * 1000) / 10 : 0;
+  const outboundPct = total > 0 ? Math.round((outboundTotal / total) * 1000) / 10 : 0;
 
   return (
     <div className="p-6 space-y-6 min-h-screen">
@@ -117,18 +132,20 @@ export default function Dashboard() {
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StatCard label="Total llamadas" value={total}                  icon={Phone}      color="blue" />
-            <StatCard label="Contestadas"    value={disp?.ANSWERED?.count}  icon={PhoneCall}  color="green"
-              sub="del total" pct={disp?.ANSWERED?.pct} />
-            <StatCard label="Perdidas"       value={lostTotal}              icon={PhoneMissed} color="red"
-              sub="sin atender" />
+            <StatCard label="Total llamadas" value={total}     icon={Phone}      color="blue" />
+            <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}  color="green"
+              sub="del total" pct={answeredPct} />
+            <StatCard label="Perdidas"       value={noAnswer}  icon={PhoneMissed} color="red"
+              sub="sin atender, del total" pct={lostPct} />
           </div>
 
-          {/* Duración + fallidas */}
+          {/* Ocupado + Fallidas + resumen de duración/canales */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Fallidas" value={disp?.FAILED?.count} icon={AlertTriangle} color="slate"
-              sub="del total" pct={disp?.FAILED?.pct} />
-            <div className="card col-span-1 lg:col-span-3 flex flex-wrap items-center gap-8">
+            <StatCard label="Ocupado" value={busy} icon={PhoneOff} color="amber"
+              sub="del total" pct={busyPct} />
+            <StatCard label="Fallidas" value={failed} icon={AlertTriangle} color="slate"
+              sub="del total" pct={failedPct} />
+            <div className="card col-span-2 lg:col-span-2 flex flex-wrap items-center gap-8">
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
                 <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.avg_billsec ?? 0)}</p>
@@ -144,6 +161,14 @@ export default function Dashboard() {
                 <p className="text-2xl font-bold text-slate-100 mt-1">{channels.length}</p>
               </div>
             </div>
+          </div>
+
+          {/* Desglose Entrantes / Salientes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard label="Llamadas entrantes" value={inboundTotal} icon={PhoneIncoming} color="blue"
+              sub="del total" pct={inboundPct} />
+            <StatCard label="Llamadas salientes" value={outboundTotal} icon={PhoneOutgoing} color="blue"
+              sub="del total" pct={outboundPct} />
           </div>
 
           {/* Colas de entrada (sin repetir Perdidas que ya aparece arriba) */}

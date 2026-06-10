@@ -88,4 +88,26 @@
 - Tests: 180/180 passing (50/50 en config.test.js, sin regresión). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
 - Commit: `feat(system_config): Configuración del sistema (empresa, logo, tema)`
 
+**Siguiente feature pendiente:** #16 `dashboard_kpi_breakdown` (priorizada por el usuario antes de #14/#15) — Corrección de KPI 'Perdidas' y desglose entrante/saliente en el dashboard.
+
+---
+
+## Sesión 2026-06-10 — dashboard_kpi_breakdown
+
+**Feature completada:** #16 `dashboard_kpi_breakdown` — Corrección de KPI 'Perdidas' y desglose entrante/saliente en el dashboard
+
+**Origen:** Solicitud del usuario (no estaba en `feature_list.json` original):
+"la tarjeta 'Perdidas' no reconcilia con 'Total'/'Contestadas'" + "mostrar en
+el dashboard el desglose de llamadas entrantes/salientes". Priorizada por el
+usuario para ejecutarse antes de #14 `pbx_health` y #15 `alerts_monitoring`
+(reordenada en el array `features` de `feature_list.json`, ids sin cambios).
+
+**Resumen:**
+- Spec redactada (R1–R16, 0 endpoints/tablas/queries nuevas, 0 deps npm nuevas, 8 tasks) y aprobada por el humano. Feature 100% frontend.
+- Diagnóstico: "Perdidas" se calculaba desde `queryQueues().__lost__` (depende de `config.queues`, da 0 si está vacío) en lugar de `dispositions['NO ANSWER']` (ya incluido en `total`).
+- Implementación: único archivo modificado `frontend/src/components/Dashboard.jsx`. Se eliminó `lostTotal`/`__lost__` como fuente de "Perdidas"; "Perdidas" ahora = `disp['NO ANSWER'].count` (con `pct`); nueva tarjeta "Ocupado" = `disp.BUSY.count` (con `pct`); nuevo grid "Llamadas entrantes"/"Llamadas salientes" usando `inbound.stats.total`/`outbound.stats.total` con `pct` sobre el total. Bloque `QueueCard`/`__lost__` (colas) intacto. Iconos nuevos `PhoneIncoming`/`PhoneOutgoing` de `lucide-react` (ya instalado).
+- Sin tests automatizados frontend (no hay Vitest/ESLint configurado): verificación por lectura de código línea por línea + simulación aritmética con payloads mock (casos normal, vacío, `data===null`, sin inbound/outbound).
+- Tests backend: 180/180 passing (sin regresión, no se tocó backend). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
+- Commit: `feat(dashboard_kpi_breakdown): Corrección de KPI 'Perdidas' y desglose entrante/saliente en el dashboard`
+
 **Siguiente feature pendiente:** #14 `pbx_health` — Monitoreo de salud del PBX.

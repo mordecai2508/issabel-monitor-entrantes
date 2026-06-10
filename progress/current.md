@@ -6,17 +6,18 @@
 
 ## Estado
 
-Sin feature activa — 2026-06-10.
+Sin sesión activa.
 
 ## Feature en progreso
 
-_Ninguna._ Última feature completada: #13 `system_config` (commit `feat(system_config): ...`, marcada `done`).
+_Ninguna._ Última feature completada: #16 `dashboard_kpi_breakdown` (done,
+commit `feat(dashboard_kpi_breakdown): ...`).
 
 ## Última acción / Próximo paso
 
-`feature_list.json` actualizado: #13 → `done`. Próxima feature pendiente: #14
-`pbx_health` — Monitoreo de salud del PBX (sdd: true, status: `pending`).
-Esperando instrucción para iniciar `spec_author`.
+Próxima feature pendiente según `feature_list.json`: #14 `pbx_health`
+(sdd: true, status: `pending`) — requiere pasar por `spec_author` antes de
+implementar.
 
 ## Bloqueos
 
