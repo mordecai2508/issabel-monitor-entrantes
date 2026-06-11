@@ -70,4 +70,7 @@ export const api = {
   updateExtension:   (ext, data)         => req('PATCH', `/api/admin/extensions/${encodeURIComponent(ext)}`, data),
   adminTrunks:       ()                  => req('GET',   '/api/admin/trunks'),
   updateTrunkVisibility: (trunk, hidden) => req('PATCH', `/api/admin/trunks/${encodeURIComponent(trunk)}`, { hidden }),
+  // PBX health monitoring
+  pbxHealth: ()                          => req('GET',  '/api/pbx/health'),
+  pbxSync:   ()                          => req('POST', '/api/pbx/sync'),
 };

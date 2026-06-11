@@ -312,6 +312,22 @@ async function startServer() {
   app.use('/api', reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk));
   app.use('/api', configRouter(pool, config, db, requireAuth, requireAdmin, getAppName));
 
+  // ── SSE — broadcast helper (declarado temprano para pbxHealthService) ──
+  const sseClients = new Set();
+
+  function broadcast(event, data) {
+    const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const c of sseClients) {
+      try { c.write(msg); } catch { sseClients.delete(c); }
+    }
+  }
+
+  // ── PBX health monitoring (feature pbx_health) ─────────────────
+  const createPbxHealthService = require('./services/pbxHealthService');
+  const pbxHealthService = createPbxHealthService(pool, broadcast);
+  pbxHealthService.start(15_000);
+  app.use('/api', require('./routes/pbx')(pool, config, db, requireAuth, pbxHealthService));
+
   // ── Auth ──────────────────────────────────────────────────────
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body || {};
@@ -433,15 +449,6 @@ async function startServer() {
   });
 
   // ── SSE — actualizaciones en tiempo real ──────────────────────
-  const sseClients = new Set();
-
-  function broadcast(event, data) {
-    const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    for (const c of sseClients) {
-      try { c.write(msg); } catch { sseClients.delete(c); }
-    }
-  }
-
   app.get('/api/events', requireAuth, async (req, res) => {
     res.setHeader('Content-Type',     'text/event-stream');
     res.setHeader('Cache-Control',    'no-cache');
@@ -457,6 +464,7 @@ async function startServer() {
       try {
         const { from, to } = todayRange();
         const data = await fetchData(from, to);
+        data.pbxStatus = pbxHealthService.getStatus();
         res.write(`event: init\ndata: ${JSON.stringify(data)}\n\n`);
       } catch (e) {
         console.error('[SSE] Error init:', e.message);

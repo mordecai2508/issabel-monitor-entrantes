@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -7,6 +7,9 @@ import {
   PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2, FileText, Settings,
 } from 'lucide-react';
 import { api } from '../api';
+import { useSSE } from '../hooks/useSSE';
+import PbxStatus from './PbxStatus';
+import Toast from './Toast';
 
 function NavItem({ to, icon: Icon, label }) {
   return (
@@ -36,9 +39,27 @@ export default function Layout() {
   const [editValue, setEditValue] = useState('');
   const [saving, setSaving]       = useState(false);
 
+  // PBX connection status (feature pbx_health, R14/R16/R17)
+  const [pbxStatus, setPbxStatus] = useState(null);
+  const [toast, setToast]         = useState(null);
+  const prevConnectedRef = useRef(null);
+
   useEffect(() => {
     api.publicConfig().then(d => setAppName(d.appName)).catch(() => {});
   }, []);
+
+  useSSE('/api/events', {
+    onPbxStatus: (data) => {
+      const prevConnected = prevConnectedRef.current;
+      if (prevConnected === true && data.connected === false) {
+        setToast({ type: 'error', message: 'Se perdió la conexión con el PBX.' });
+      } else if (prevConnected === false && data.connected === true) {
+        setToast({ type: 'success', message: 'Conexión con el PBX restablecida.' });
+      }
+      prevConnectedRef.current = data.connected;
+      setPbxStatus(data);
+    },
+  });
 
   async function saveAppName() {
     if (!editValue.trim()) { setEditing(false); return; }
@@ -127,6 +148,9 @@ export default function Layout() {
 
         {/* User */}
         <div className="border-t border-slate-800 pt-4 mt-4">
+          <div className="mb-3 px-2">
+            <PbxStatus pbxStatus={pbxStatus} />
+          </div>
           <div className="flex items-center gap-2 px-2 mb-3">
             <div className="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center shrink-0">
               {user?.role === 'admin'
@@ -153,6 +177,14 @@ export default function Layout() {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

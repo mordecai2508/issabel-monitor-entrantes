@@ -10,12 +10,12 @@ Sin sesión activa.
 
 ## Feature en progreso
 
-_Ninguna._ Última feature completada: #17 `dashboard_lost_destinations` (done,
-commit `feat(dashboard_lost_destinations): ...`).
+_Ninguna._ Última feature completada: #14 `pbx_health` (done,
+commit `feat(pbx_health): ...`).
 
 ## Última acción / Próximo paso
 
-Próxima feature pendiente según `feature_list.json`: #14 `pbx_health`
+Próxima feature pendiente según `feature_list.json`: #15 `alerts_monitoring`
 (sdd: true, status: `pending`) — requiere pasar por `spec_author` antes de
 implementar.
 

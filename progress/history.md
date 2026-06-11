@@ -140,3 +140,19 @@ a "Perdidas" (`dispositions['NO ANSWER']`), preservando exactamente
 - Commit: `feat(dashboard_lost_destinations): Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations`
 
 **Siguiente feature pendiente:** #14 `pbx_health` — Monitoreo de salud del PBX.
+
+---
+
+## Sesión 2026-06-10 — pbx_health
+
+**Feature completada:** #14 `pbx_health` — Monitoreo de salud de la conexión PBX
+
+**Resumen:**
+- Spec redactada (R1–R23, 2 endpoints, 0 tablas SQLite nuevas, 0 deps npm, 9 tasks) y aprobada por el humano.
+- Implementación: `backend/services/pbxHealthService.js` (estado en memoria, `pool.query('SELECT 1')` con timeout vía `Promise.race`, timer propio de 15s, `broadcast('pbx_status', ...)` solo en transiciones), `backend/routes/pbx.js` (`GET /api/pbx/health`, `POST /api/pbx/sync`, ambos `requireAuth`, siempre HTTP 200), `backend/tests/pbx.test.js`.
+- `server.js`: reordenamiento sin cambios funcionales del bloque `sseClients`/`broadcast` (para que esté disponible al instanciar el servicio), montaje del router, y `data.pbxStatus = pbxHealthService.getStatus()` añadido al payload `init` de `/api/events` (R23). `setInterval` de poll existente intacto.
+- Frontend: `PbxStatus.jsx` (indicador verde/rojo/neutro + botón de sync manual) montado en `Layout.jsx`, `Toast.jsx` genérico para notificaciones de conexión perdida/restablecida, `useSSE.js` extendido de forma aditiva con `onPbxStatus`, `api.js` con `pbxHealth()`/`pbxSync()`.
+- Tests: 209/209 passing (195 previos + 14 nuevos en `pbx.test.js`, sin regresión). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
+- Commit: `feat(pbx_health): Monitoreo de salud de la conexión PBX`
+
+**Siguiente feature pendiente:** #15 `alerts_monitoring` — Sistema de alertas y monitoreo.
