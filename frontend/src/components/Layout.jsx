@@ -5,6 +5,7 @@ import {
   Phone, LayoutDashboard, History,
   LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
   PhoneIncoming, PhoneOutgoing, Users, Search, BarChart2, FileText, Settings,
+  Bell, BellRing,
 } from 'lucide-react';
 import { api } from '../api';
 import { useSSE } from '../hooks/useSSE';
@@ -58,6 +59,11 @@ export default function Layout() {
       }
       prevConnectedRef.current = data.connected;
       setPbxStatus(data);
+    },
+    // Notificación global de alertas nuevas (feature alerts_monitoring, R25)
+    onAlert: (data) => {
+      if (data.resolved) return;
+      setToast({ type: 'error', message: `Nueva alerta: ${data.description || data.type}` });
     },
   });
 
@@ -136,12 +142,14 @@ export default function Layout() {
           <NavItem to="/historical"           icon={History}    label="Histórico" />
           <NavItem to="/historical/analytics" icon={BarChart2} label="Analytics" />
           <NavItem to="/reports" icon={FileText} label="Reportes" />
+          <NavItem to="/alerts" icon={Bell} label="Alertas" />
           {user?.role === 'admin' && (
             <>
               <p className="text-xs text-slate-600 uppercase tracking-wider px-3 mb-2 mt-4">Admin</p>
               <NavItem to="/channels"    icon={PhoneCall} label="Canales" />
               <NavItem to="/admin/users" icon={Users}     label="Usuarios" />
               <NavItem to="/admin/config" icon={Settings} label="Configuración" />
+              <NavItem to="/admin/alerts" icon={BellRing} label="Reglas de alerta" />
             </>
           )}
         </nav>

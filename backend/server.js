@@ -328,6 +328,14 @@ async function startServer() {
   pbxHealthService.start(15_000);
   app.use('/api', require('./routes/pbx')(pool, config, db, requireAuth, pbxHealthService));
 
+  // ── Alertas y monitoreo (feature alerts_monitoring) ─────────────
+  const createMailService = require('./services/mailService');
+  const mailService = createMailService(config.smtp);
+  const createAlertService = require('./services/alertService');
+  const alertService = createAlertService(pool, config, db, broadcast, pbxHealthService, mailService);
+  alertService.start();
+  app.use('/api', require('./routes/alerts')(pool, config, db, requireAuth, requireAdmin, alertService));
+
   // ── Auth ──────────────────────────────────────────────────────
   app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body || {};

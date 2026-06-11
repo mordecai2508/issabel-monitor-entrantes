@@ -19,6 +19,14 @@
   "channelAliases": {},
   "queues": ["8000", "8300"],
   "lostDestinations": ["s", "hang", "hangup"],
+  "smtp": {
+    "host": "",
+    "port": 587,
+    "secure": false,
+    "user": "alerts@example.com",
+    "password": "",
+    "from": "Issabel Monitor <alerts@example.com>"
+  },
   "users": [
     {
       "id": 1,

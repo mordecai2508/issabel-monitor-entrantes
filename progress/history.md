@@ -156,3 +156,18 @@ a "Perdidas" (`dispositions['NO ANSWER']`), preservando exactamente
 - Commit: `feat(pbx_health): Monitoreo de salud de la conexión PBX`
 
 **Siguiente feature pendiente:** #15 `alerts_monitoring` — Sistema de alertas y monitoreo.
+
+---
+
+## Sesión 2026-06-10 — alerts_monitoring
+
+**Feature completada:** #15 `alerts_monitoring` — Sistema de alertas y monitoreo
+
+**Resumen:**
+- Spec redactada (R1–R37, 6 endpoints, 2 tablas SQLite + 2 índices, 1 dep npm: `nodemailer`, 14 tasks) y aprobada por el humano. Antes de comprometerse a los 4 tipos de alerta se verificaron las fuentes de datos disponibles: `lost_spike` y `pbx_disconnect` totalmente evaluables; `trunk_down` solo "best-effort" (proxy de ausencia de actividad CDR, sin acceso AMI real); `ext_unreachable` documentado como CRUD-only/no evaluado (sin fuente de datos de registro de extensiones).
+- Implementación: `backend/services/alertService.js` (CRUD `alert_rules`, `getActiveAlerts`/`resolveAlert`, `evaluateOnce()` por tipo, timer propio independiente de `pollIntervalMs` y del timer de `pbxHealthService`), `backend/services/mailService.js` (nodemailer real o no-op si no hay `smtp.host`), `backend/routes/alerts.js` (6 endpoints `/api/admin/alerts/rules*` admin-only y `/api/alerts/active`+`/api/alerts/:id/resolve` auth), `backend/tests/alerts.test.js` (41 tests), `frontend/src/components/AlertsPanel.jsx` (`/alerts`, todos los roles) y `AlertRulesManager.jsx` (`/admin/alerts`, admin-only, con notas de limitación `trunk_down`/`ext_unreachable`).
+- `backend/db/setup.js`: nuevas tablas `alert_rules`/`alerts` + 2 índices; se detectó que `better-sqlite3` activa FK por defecto (a diferencia de SQLite estándar), lo que bloqueaba `DELETE` de reglas con alertas históricas (R9) — corregido con `db.pragma('foreign_keys = OFF')`. `server.js`: instanciación de `mailService`+`alertService` y montaje del router tras el bloque de `pbxHealthService` (sin tocar sus timers). `useSSE.js` extendido de forma aditiva con `onAlert`; `Layout.jsx` muestra `Toast` en alertas nuevas y añade nav "Alertas"/"Reglas de alerta"; `api.js`/`App.jsx` con las nuevas funciones/rutas. `config.example.json` con bloque opcional `smtp`.
+- Tests: 250/250 passing (209 previos + 41 nuevos en `alerts.test.js`, sin regresión). Build frontend: ✅. `./init.sh`: 25/25. Review: APROBADO.
+- Commit: `feat(alerts_monitoring): Sistema de alertas y monitoreo`
+
+**Siguiente feature pendiente:** ninguna — todas las features de `feature_list.json` están en `done` (#1-#17). El leader queda a la espera de nuevas features que el usuario añada al backlog.

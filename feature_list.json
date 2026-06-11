@@ -311,7 +311,7 @@
         "Tests: generación de alerta por umbral, notificación SSE, envío de email (mock), resolución"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "done"
     }
   ]
 }

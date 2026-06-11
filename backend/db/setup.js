@@ -18,6 +18,12 @@ function initDb(config) {
   // Ensure WAL mode for better concurrency
   db.pragma('journal_mode = WAL');
 
+  // better-sqlite3 enables `foreign_keys` by default (unlike stock SQLite).
+  // alerts.rule_id intentionally has no ON DELETE behaviour: deleting an
+  // alert_rules row must succeed while preserving historical alerts whose
+  // rule_id may then point to a no-longer-existing rule (R9, alerts_monitoring).
+  db.pragma('foreign_keys = OFF');
+
   // ── users table ────────────────────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -72,6 +78,41 @@ function initDb(config) {
       trunk  TEXT PRIMARY KEY,
       hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1))
     )
+  `);
+
+  // ── alert_rules table (alerts_monitoring feature) ───────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS alert_rules (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      type         TEXT    NOT NULL CHECK (type IN ('trunk_down', 'ext_unreachable', 'lost_spike', 'pbx_disconnect')),
+      threshold    REAL,
+      enabled      INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+      notify_email TEXT
+    )
+  `);
+
+  // ── alerts table (alerts_monitoring feature) ────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS alerts (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id     INTEGER REFERENCES alert_rules(id),
+      type        TEXT    NOT NULL,
+      description TEXT,
+      resolved    INTEGER NOT NULL DEFAULT 0 CHECK (resolved IN (0, 1)),
+      created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT
+    )
+  `);
+
+  // ── indexes for alerts queries ───────────────────────────────────
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_alerts_resolved
+    ON alerts (resolved, created_at DESC)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_alerts_rule_unresolved
+    ON alerts (rule_id, resolved)
   `);
 
   // ── migrate users from config.json → SQLite ────────────────────

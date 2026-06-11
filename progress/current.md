@@ -6,18 +6,18 @@
 
 ## Estado
 
-Sin sesión activa.
+Sin feature en progreso.
 
 ## Feature en progreso
 
-_Ninguna._ Última feature completada: #14 `pbx_health` (done,
-commit `feat(pbx_health): ...`).
+_Ninguna._ Última feature completada: #15 `alerts_monitoring` (done,
+commit `feat(alerts_monitoring): ...`).
 
 ## Última acción / Próximo paso
 
-Próxima feature pendiente según `feature_list.json`: #15 `alerts_monitoring`
-(sdd: true, status: `pending`) — requiere pasar por `spec_author` antes de
-implementar.
+Todas las features de `feature_list.json` (#1-#17) están en `status: "done"`.
+No hay features `pending`/`spec_ready`/`in_progress`. A la espera de que el
+usuario añada nuevas features al backlog.
 
 ## Bloqueos
 

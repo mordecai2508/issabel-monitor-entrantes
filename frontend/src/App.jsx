@@ -13,6 +13,8 @@ import OutboundTable from './components/OutboundTable';
 import HistoricalAnalytics from './components/HistoricalAnalytics';
 import ReportsModule from './components/ReportsModule';
 import SystemConfig from './components/SystemConfig';
+import AlertsPanel from './components/AlertsPanel';
+import AlertRulesManager from './components/AlertRulesManager';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -49,9 +51,11 @@ function AppRoutes() {
         <Route path="historical" element={<HistoricalView />} />
         <Route path="historical/analytics" element={<PrivateRoute><HistoricalAnalytics /></PrivateRoute>} />
         <Route path="reports" element={<PrivateRoute><ReportsModule /></PrivateRoute>} />
+        <Route path="alerts" element={<PrivateRoute><AlertsPanel /></PrivateRoute>} />
         <Route path="channels"    element={<AdminRoute><ChannelAliasManager /></AdminRoute>} />
         <Route path="admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
         <Route path="admin/config" element={<AdminRoute><SystemConfig /></AdminRoute>} />
+        <Route path="admin/alerts" element={<AdminRoute><AlertRulesManager /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
