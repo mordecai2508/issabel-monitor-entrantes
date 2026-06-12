@@ -171,3 +171,20 @@ a "Perdidas" (`dispositions['NO ANSWER']`), preservando exactamente
 - Commit: `feat(alerts_monitoring): Sistema de alertas y monitoreo`
 
 **Siguiente feature pendiente:** ninguna — todas las features de `feature_list.json` están en `done` (#1-#17). El leader queda a la espera de nuevas features que el usuario añada al backlog.
+
+---
+
+## Sesión 2026-06-12 — dashboard_extensions_status
+
+**Feature completada:** #18 `dashboard_extensions_status` — Estado de extensiones del PBX (total y activas) en el dashboard
+
+**Resumen:**
+- Feature nueva añadida al backlog a petición del usuario, con decisiones previas aclaradas: "activa" = extensión registrada en Asterisk vía AMI (PJSIPShowEndpoints), "total" = endpoints reportados por AMI; credenciales en nuevo bloque `config.ami`.
+- Spec redactada (R1-R20, design, T1-T10) y aprobada por el humano.
+- Implementación: `backend/services/amiExtensionsService.js` (cliente `asterisk-manager`, polling propio 30s, caché, tolerante a fallos), endpoint `GET /api/pbx/extensions` añadido a `routes/pbx.js`, bloque `ami` en `config.example.json`/`config.json`, dos `StatCard` ("Extensiones"/"Activas") en `Dashboard.jsx` con polling REST propio (no SSE) y degradación visual si `available:false`.
+- Primera revisión: RECHAZADA solo por trazabilidad (R12, R14-R17, R19, R20 sin test nombrado). El humano decidió configurar Vitest (antes inexistente en frontend) para cubrir R14-R17.
+- Correcciones: 7 tests nuevos en `ami.test.js` (R12/R19/R20) + nuevo `Dashboard.test.jsx`/`vitest.config.js`/`src/test/setup.js` (R14-R17).
+- Tests: backend 271/271, frontend (vitest, nuevo) 4/4. Build frontend: ✅. `./init.sh`: 25/25. Review (2ª ronda): APROBADO.
+- Commit: `feat(dashboard_extensions_status): Estado de extensiones del PBX (total y activas) en el dashboard` (354308b)
+
+**Siguiente feature pendiente:** ninguna — todas las features de `feature_list.json` están en `done` (#1-#18). El leader queda a la espera de nuevas features que el usuario añada al backlog.
