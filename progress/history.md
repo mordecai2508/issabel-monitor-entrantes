@@ -188,3 +188,21 @@ a "Perdidas" (`dispositions['NO ANSWER']`), preservando exactamente
 - Commit: `feat(dashboard_extensions_status): Estado de extensiones del PBX (total y activas) en el dashboard` (354308b)
 
 **Siguiente feature pendiente:** ninguna — todas las features de `feature_list.json` están en `done` (#1-#18). El leader queda a la espera de nuevas features que el usuario añada al backlog.
+
+---
+
+## Sesión 2026-06-12 — dashboard_extensions_chan_sip_fix
+
+**Feature completada:** #19 `dashboard_extensions_chan_sip_fix` — Corrección: detección de extensiones activas vía SIPpeers (chan_sip) en lugar de PJSIPShowEndpoints
+
+**Resumen:**
+- Al configurar AMI en producción (#18), se detectó que el Issabel real usa chan_sip, no PJSIP: `PJSIPShowEndpoints` no existe ("Invalid/unknown command"). Diagnosticado con el usuario vía `sip show peers`/`manager show commands`.
+- Spec de corrección redactada como delta (R21-R26 sobre R1-R20 de #18) y aprobada por el humano. Decisiones: acción AMI `SIPpeers` (eventos `PeerEntry`/`PeerlistComplete`); "extensión" = `ObjectName` puramente numérico (`^\d+$`, excluye troncales tipo ENT_LIWA/NET2_ENT_.../VIRTUAL_TRUNK_SALIENTE); "activa" = `Status` empieza con `OK`/`LAGGED`, resto = inactiva.
+- Implementación acotada a `backend/services/amiExtensionsService.js` (acción AMI, parsing de eventos, filtro regex, mapeo de status) + `backend/tests/ami.test.js` (mocks `PeerEntry`/`PeerlistComplete`, casos OK/UNKNOWN/LAGGED/Unmonitored/troncal-excluida) + `_comment` en `config.example.json` documentando que `manager.conf` necesita la clase `reporting` en `read` para `SIPpeers`. No se tocó `routes/pbx.js`, `server.js` ni frontend (contrato del endpoint sin cambios).
+- 1ª revisión: RECHAZADA por trazabilidad (R26 sin test, R11 de #18 perdió su nombre al renombrarse a R25). Corregido con `it('R26 - ...')` nuevo y test renombrado a `R11/R25`.
+- Tests: backend 274/274 (273 + 1 nuevo), frontend sin cambios (build + vitest 4/4 verdes). `./init.sh`: 25/25. Review (2ª ronda): APROBADO.
+- Commit: `feat(dashboard_extensions_chan_sip_fix): Corrección - detección de extensiones activas vía SIPpeers (chan_sip) en lugar de PJSIPShowEndpoints` (aec49e1)
+
+**Pendiente fuera de código (acción manual del usuario en producción):** añadir la clase `reporting` a `read` en `manager.conf` del Issabel (`read = system,call,agent,user,reporting`) + `asterisk -rx "manager reload"`, para que `SIPpeers` funcione con el usuario AMI `monitor-readonly`.
+
+**Siguiente feature pendiente:** ninguna — todas las features de `feature_list.json` están en `done` (#1-#19). El leader queda a la espera de nuevas features que el usuario añada al backlog.
