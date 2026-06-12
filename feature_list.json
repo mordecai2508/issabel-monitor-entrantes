@@ -332,6 +332,26 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 19,
+      "name": "dashboard_extensions_chan_sip_fix",
+      "title": "Corrección: detección de extensiones activas vía SIPpeers (chan_sip) en lugar de PJSIPShowEndpoints",
+      "description": "La feature #18 (dashboard_extensions_status) asumió un PBX basado en PJSIP y usa la acción AMI 'PJSIPShowEndpoints'. En el Issabel de producción las extensiones usan chan_sip (SIP clásico): esa acción no existe ('Invalid/unknown command: PJSIPShowEndpoints') y amiExtensionsService nunca obtiene datos (queda en estado vacío/no disponible). Corregir el servicio para usar la acción AMI 'SIPpeers' (eventos PeerEntry/PeerlistComplete), distinguiendo extensiones de troncales por convención de nombre, y reclasificando el estado 'activa' según el campo Status reportado por chan_sip.",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "amiExtensionsService usa la acción AMI 'SIPpeers' (eventos PeerEntry/PeerlistComplete) en lugar de 'PJSIPShowEndpoints', manteniendo el mismo timeout/caché/tolerancia a fallos ya implementados (R9-R13/R19/R20 de #18)",
+        "Solo se cuentan como 'extensión' los peers cuyo ObjectName es puramente numérico (regex ^\\d+$ , ej. '202', '301'); peers con nombres no numéricos (ej. ENT_LIWA, NET2_ENT_6076854970, VIRTUAL_TRUNK_SALIENTE) se consideran troncales y se excluyen de total/active/extensions",
+        "Un peer numérico se clasifica como status='active' si su campo Status comienza con 'OK' o 'LAGGED'; cualquier otro valor (UNKNOWN, UNREACHABLE, Unmonitored, ausente) se clasifica como 'inactive'",
+        "GET /api/pbx/extensions conserva exactamente la misma forma de respuesta { ok: true, data: { total, active, extensions: [{extension, status}], available } }",
+        "Si la acción SIPpeers falla (p.ej. permiso AMI insuficiente, falta la clase 'reporting' en read), el servicio se comporta igual que ante cualquier otro fallo AMI: conserva el último estado bueno conocido o el estado vacío/no disponible, sin lanzar excepciones ni romper el dashboard",
+        "config.example.json (o comentario/README junto al bloque ami) documenta que el usuario AMI necesita la clase 'reporting' en 'read' (ej. read = system,call,agent,user,reporting) para que SIPpeers funcione",
+        "Tests actualizados/nuevos en backend/tests/ami.test.js: mocks basados en eventos PeerEntry/PeerlistComplete (no PJSIPShowEndpoints), casos con mezcla de peers numéricos y con nombre, y status OK/LAGGED/UNKNOWN/UNREACHABLE/Unmonitored; toda la trazabilidad R<n> de #18 que dependía del mapeo de campos se actualiza para reflejar SIPpeers"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

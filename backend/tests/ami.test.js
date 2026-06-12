@@ -1,10 +1,12 @@
 'use strict';
 
 /**
- * ami.test.js — dashboard_extensions_status feature (#18) tests
+ * ami.test.js — dashboard_extensions_status (#18) and
+ * dashboard_extensions_chan_sip_fix (#19) feature tests
  *
  * Jest + Supertest, with a mocked `asterisk-manager` (no real AMI connection).
- * Covers R1/R2/R6/R7/R8/R9/R10/R11/R12/R13/R18/R19/R20.
+ * Covers R1/R2/R5/R6/R7/R8/R9/R10/R11/R12/R13/R18/R19/R20 (from #18) and
+ * R21/R22/R23/R24/R25/R26 (from #19, the chan_sip SIPpeers/PeerEntry fix).
  */
 
 const request = require('supertest');
@@ -51,18 +53,18 @@ afterEach(() => {
 const VALID_AMI_CONFIG = { host: '127.0.0.1', port: 5038, username: 'monitor', password: 'secret' };
 
 /**
- * Configures the mock so that `action({ action: 'PJSIPShowEndpoints' }, cb)`
- * emits the given list of `{ extension, deviceState }` pairs as
- * `EndpointList` managerevents, followed by `EndpointListComplete`, then
- * resolves the action callback successfully.
+ * Configures the mock so that `action({ action: 'SIPpeers' }, cb)` emits the
+ * given list of `{ extension, peerStatus }` pairs as `PeerEntry`
+ * managerevents (`objectname`/`status`), followed by `PeerlistComplete`,
+ * then resolves the action callback successfully.
  */
-function mockSuccessfulQuery(endpointDefs) {
+function mockSuccessfulQuery(peerDefs) {
   AsteriskManager.__actionImpl = function (action, callback) {
     process.nextTick(() => {
-      for (const { extension, deviceState } of endpointDefs) {
-        this.emit('managerevent', { event: 'EndpointList', objectname: extension, devicestate: deviceState });
+      for (const { extension, peerStatus } of peerDefs) {
+        this.emit('managerevent', { event: 'PeerEntry', objectname: extension, status: peerStatus });
       }
-      this.emit('managerevent', { event: 'EndpointListComplete' });
+      this.emit('managerevent', { event: 'PeerlistComplete' });
       callback(null, { response: 'Success' });
     });
   };
@@ -71,7 +73,7 @@ function mockSuccessfulQuery(endpointDefs) {
 /** Configures the mock so the action callback never fires (simulates a hang/timeout). */
 function mockHangingQuery() {
   AsteriskManager.__actionImpl = function () {
-    // never calls callback, never emits EndpointListComplete
+    // never calls callback, never emits PeerlistComplete
   };
 }
 
@@ -252,20 +254,27 @@ describe('GET /api/pbx/extensions', () => {
   });
 });
 
-// ── R3/R4/R7 — check() exitoso con AMI configurado ──────────────────────────
+// ── R21/R22/R5 — check() exitoso con AMI configurado ────────────────────────
 
-describe('amiExtensionsService.check() - consulta exitosa (R3/R4/R5)', () => {
+describe('amiExtensionsService.check() - consulta exitosa (R21/R22/R5)', () => {
 
-  it('R3/R4 - parsea EndpointList/EndpointListComplete a { extension, status } y calcula total/active', async () => {
-    mockSuccessfulQuery([
-      { extension: '100', deviceState: 'NOT_INUSE' },
-      { extension: '101', deviceState: 'INUSE' },
-      { extension: '102', deviceState: 'UNAVAILABLE' },
-    ]);
+  it('R21/R22 - envía la acción SIPpeers y parsea PeerEntry/PeerlistComplete a { extension, status } y calcula total/active', async () => {
+    let sentAction = null;
+    AsteriskManager.__actionImpl = function (action, callback) {
+      sentAction = action;
+      process.nextTick(() => {
+        this.emit('managerevent', { event: 'PeerEntry', objectname: '100', status: 'OK (10 ms)' });
+        this.emit('managerevent', { event: 'PeerEntry', objectname: '101', status: 'OK (5 ms)' });
+        this.emit('managerevent', { event: 'PeerEntry', objectname: '102', status: 'UNKNOWN' });
+        this.emit('managerevent', { event: 'PeerlistComplete' });
+        callback(null, { response: 'Success' });
+      });
+    };
 
     const service = createAmiExtensionsService(VALID_AMI_CONFIG);
     const status = await service.check();
 
+    expect(sentAction).toEqual({ action: 'SIPpeers' });
     expect(status.available).toBe(true);
     expect(status.total).toBe(3);
     expect(status.active).toBe(2);
@@ -276,8 +285,8 @@ describe('amiExtensionsService.check() - consulta exitosa (R3/R4/R5)', () => {
     ]));
   });
 
-  it('R5 - solo se invoca la acción de lectura PJSIPShowEndpoints (sin acciones de escritura)', async () => {
-    mockSuccessfulQuery([{ extension: '100', deviceState: 'NOT_INUSE' }]);
+  it('R5 - solo se invoca la acción de lectura SIPpeers (sin acciones de escritura)', async () => {
+    mockSuccessfulQuery([{ extension: '100', peerStatus: 'OK (10 ms)' }]);
 
     const service = createAmiExtensionsService(VALID_AMI_CONFIG);
     await service.check();
@@ -286,11 +295,74 @@ describe('amiExtensionsService.check() - consulta exitosa (R3/R4/R5)', () => {
   });
 });
 
-// ── R10/R11 — fallos de conexión / consulta ─────────────────────────────────
+// ── R23 — filtro extensión vs. troncal ──────────────────────────────────────
 
-describe('amiExtensionsService.check() - fallos (R10/R11)', () => {
+describe('amiExtensionsService.check() - filtro extensión vs. troncal (R23)', () => {
 
-  it('R10/R11 - fallo de consulta sin éxito previo: mantiene { total: 0, active: 0, extensions: [], available: false } y registra el error sin lanzar excepción', async () => {
+  it('R23 - excluye peers con ObjectName no puramente numérico (troncales)', async () => {
+    mockSuccessfulQuery([
+      { extension: '202', peerStatus: 'OK (50 ms)' },
+      { extension: '301', peerStatus: 'OK (60 ms)' },
+      { extension: 'ENT_LIWA', peerStatus: 'OK (10 ms)' },
+      { extension: 'NET2_ENT_6076854970', peerStatus: 'UNKNOWN' },
+      { extension: 'VIRTUAL_TRUNK_SALIENTE', peerStatus: 'OK (5 ms)' },
+    ]);
+
+    const service = createAmiExtensionsService(VALID_AMI_CONFIG);
+    const status = await service.check();
+
+    expect(status.total).toBe(2);
+    expect(status.active).toBe(2);
+    expect(status.extensions).toEqual(expect.arrayContaining([
+      { extension: '202', status: 'active' },
+      { extension: '301', status: 'active' },
+    ]));
+    expect(status.extensions).toHaveLength(2);
+    expect(status.extensions.some(e => e.extension === 'ENT_LIWA')).toBe(false);
+    expect(status.extensions.some(e => e.extension === 'NET2_ENT_6076854970')).toBe(false);
+    expect(status.extensions.some(e => e.extension === 'VIRTUAL_TRUNK_SALIENTE')).toBe(false);
+  });
+});
+
+// ── R24 — mapeo de Status a active/inactive ─────────────────────────────────
+
+describe('amiExtensionsService.check() - mapeo de Status (R24)', () => {
+
+  it('R24 - clasifica status OK/LAGGED como active y UNKNOWN/UNREACHABLE/Unmonitored/ausente como inactive', async () => {
+    mockSuccessfulQuery([
+      { extension: '202', peerStatus: 'OK (230 ms)' },
+      { extension: '203', peerStatus: 'OK (9 ms)' },
+      { extension: '301', peerStatus: 'LAGGED (800 ms)' },
+      { extension: '1',   peerStatus: 'UNKNOWN' },
+      { extension: '101', peerStatus: 'UNREACHABLE' },
+      { extension: '201', peerStatus: 'Unmonitored' },
+      { extension: '204', peerStatus: '' },
+      { extension: '205', peerStatus: undefined },
+    ]);
+
+    const service = createAmiExtensionsService(VALID_AMI_CONFIG);
+    const status = await service.check();
+
+    expect(status.total).toBe(8);
+    expect(status.active).toBe(3);
+    expect(status.extensions).toEqual(expect.arrayContaining([
+      { extension: '202', status: 'active' },
+      { extension: '203', status: 'active' },
+      { extension: '301', status: 'active' },
+      { extension: '1',   status: 'inactive' },
+      { extension: '101', status: 'inactive' },
+      { extension: '201', status: 'inactive' },
+      { extension: '204', status: 'inactive' },
+      { extension: '205', status: 'inactive' },
+    ]));
+  });
+});
+
+// ── R10/R11/R25 — fallos de conexión / consulta ─────────────────────────────
+
+describe('amiExtensionsService.check() - fallos (R10/R11/R25)', () => {
+
+  it('R11/R25 - fallo de SIPpeers sin éxito previo: se loguea sin crashear y mantiene estado vacío', async () => {
     mockFailingQuery('ECONNREFUSED');
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -305,7 +377,7 @@ describe('amiExtensionsService.check() - fallos (R10/R11)', () => {
   });
 
   it('R10 - fallo de consulta tras un éxito previo: conserva el último estado bueno conocido (available=true)', async () => {
-    mockSuccessfulQuery([{ extension: '100', deviceState: 'NOT_INUSE' }]);
+    mockSuccessfulQuery([{ extension: '100', peerStatus: 'OK (10 ms)' }]);
     const service = createAmiExtensionsService(VALID_AMI_CONFIG);
 
     const firstStatus = await service.check();
@@ -411,8 +483,8 @@ describe('amiExtensionsService.start() - ciclo de polling propio (R12)', () => {
     AsteriskManager.__actionImpl = function (action, callback) {
       queryCount += 1;
       process.nextTick(() => {
-        this.emit('managerevent', { event: 'EndpointList', objectname: '100', devicestate: 'NOT_INUSE' });
-        this.emit('managerevent', { event: 'EndpointListComplete' });
+        this.emit('managerevent', { event: 'PeerEntry', objectname: '100', status: 'OK (10 ms)' });
+        this.emit('managerevent', { event: 'PeerlistComplete' });
         callback(null, { response: 'Success' });
       });
     };
@@ -432,7 +504,7 @@ describe('amiExtensionsService.start() - ciclo de polling propio (R12)', () => {
     expect(queryCount).toBe(0);
 
     // Avanzar el reloj simulado dispara el ciclo de polling propio del
-    // servicio (consulta AMI vía PJSIPShowEndpoints), sin que exista (ni se
+    // servicio (consulta AMI vía SIPpeers), sin que exista (ni se
     // requiera) un servidor Express/SSE.
     await jest.advanceTimersByTimeAsync(1000);
     expect(queryCount).toBe(1);
@@ -505,7 +577,7 @@ describe('createAmiExtensionsService - sin pool MySQL (R19)', () => {
     expect(pool.query).not.toHaveBeenCalled();
 
     // Caso "configurado, consulta exitosa": tampoco debe tocar `pool`.
-    mockSuccessfulQuery([{ extension: '100', deviceState: 'NOT_INUSE' }]);
+    mockSuccessfulQuery([{ extension: '100', peerStatus: 'OK (10 ms)' }]);
     const configuredOk = createAmiExtensionsService(VALID_AMI_CONFIG);
     await configuredOk.check();
     expect(pool.query).not.toHaveBeenCalled();
@@ -561,5 +633,24 @@ describe('R18 - no-regresión tras ampliar routes/pbx.js', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.data).toEqual({ connected: true, lastCheck: null, lastError: null, latencyMs: 0 });
+  });
+});
+
+// ── R26 — documentación del permiso AMI `reporting` ────────────────────────
+
+describe('config.example.json - documentación del permiso AMI reporting (R26)', () => {
+
+  it('R26 - el bloque ami de config.example.json documenta que manager.conf necesita la clase reporting en read para que SIPpeers funcione', () => {
+    // eslint-disable-next-line global-require
+    const exampleConfig = require('../config.example.json');
+
+    expect(exampleConfig).toHaveProperty('ami');
+    expect(exampleConfig.ami).toHaveProperty('_comment');
+    expect(typeof exampleConfig.ami._comment).toBe('string');
+
+    // El comentario debe mencionar explícitamente la clase 'reporting' de
+    // manager.conf y la acción AMI SIPpeers que depende de ella.
+    expect(exampleConfig.ami._comment).toMatch(/reporting/i);
+    expect(exampleConfig.ami._comment).toMatch(/SIPpeers/i);
   });
 });

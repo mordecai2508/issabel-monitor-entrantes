@@ -5,6 +5,12 @@ const AsteriskManager = require('asterisk-manager');
 const DEFAULT_TIMEOUT_MS  = 5_000;
 const DEFAULT_INTERVAL_MS = 30_000;
 
+// Only chan_sip peers whose ObjectName is purely numeric are treated as
+// extensions; alphanumeric/underscore names (e.g. `ENT_LIWA`,
+// `NET2_ENT_6076854970`, `VIRTUAL_TRUNK_SALIENTE`) are trunks and are
+// excluded entirely (R23).
+const EXTENSION_NAME_RE = /^\d+$/;
+
 const EMPTY_STATE = Object.freeze({
   total: 0,
   active: 0,
@@ -14,11 +20,12 @@ const EMPTY_STATE = Object.freeze({
 
 /**
  * Factory for the AMI extensions status service (feature #18 —
- * dashboard_extensions_status).
+ * dashboard_extensions_status — corrected for chan_sip by #19 —
+ * dashboard_extensions_chan_sip_fix).
  *
- * Maintains an in-memory snapshot of PJSIP/SIP endpoint registration status
+ * Maintains an in-memory snapshot of chan_sip peer registration status
  * (`{ total, active, extensions: [{ extension, status }], available }`),
- * refreshed periodically via the read-only AMI action `PJSIPShowEndpoints`.
+ * refreshed periodically via the read-only AMI action `SIPpeers`.
  *
  * - If `amiConfig` is missing or incomplete (R1/R2), the integration is
  *   treated as "not configured": no AMI connection is ever attempted and
@@ -65,34 +72,42 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
   }
 
   /**
-   * Sends the `PJSIPShowEndpoints` AMI action and accumulates the
-   * `EndpointList` events (one per endpoint) until `EndpointListComplete`.
+   * Sends the `SIPpeers` AMI action and accumulates the `PeerEntry` events
+   * (one per chan_sip peer) until `PeerlistComplete`.
    *
-   * Field mapping (verified against Asterisk 18/Issabel PJSIP AMI output):
-   * - `extension`: `ObjectName` field of each `EndpointList` event — the
-   *   PJSIP endpoint identifier (typically the extension number).
-   * - `status`: derived from the `DeviceState` field. Asterisk reports
-   *   `UNAVAILABLE` when an endpoint has no registered contacts; any other
-   *   value (`NOT_INUSE`, `INUSE`, `RINGING`, `ON HOLD`, etc.) indicates the
-   *   endpoint has at least one registered contact, so it is normalized to
-   *   `'active'`. `UNAVAILABLE` (or a missing `DeviceState`) is normalized
-   *   to `'inactive'`.
+   * Field mapping (R22, verified against Asterisk chan_sip AMI output):
+   * - `extension`: `ObjectName` field of each `PeerEntry` event — the
+   *   chan_sip peer name as configured (without the `/user` suffix).
+   * - `status`: derived from the `Status` field (raw string, e.g.
+   *   `'OK (230 ms)'`, `'UNKNOWN'`, `'UNREACHABLE'`, `'Unmonitored'`, or
+   *   absent/empty). Normalized to uppercase: values starting with `'OK'`
+   *   or `'LAGGED'` map to `'active'`; any other value (including
+   *   `UNKNOWN`, `UNREACHABLE`, `Unmonitored`, or absent/empty) maps to
+   *   `'inactive'` (R24).
+   *
+   * Peer filtering (R23): only peers whose `ObjectName` is purely numeric
+   * (`EXTENSION_NAME_RE`) are treated as extensions and included in the
+   * result; peers with non-numeric names (typically trunks, e.g.
+   * `ENT_LIWA`, `NET2_ENT_6076854970`, `VIRTUAL_TRUNK_SALIENTE`) are
+   * discarded entirely.
    */
-  function queryEndpoints() {
+  function queryPeers() {
     return new Promise((resolve, reject) => {
-      const endpoints = [];
+      const peers = [];
 
       function onManagerEvent(evt) {
         const eventName = String(evt.event || '').toLowerCase();
 
-        if (eventName === 'endpointlist') {
-          const extension = evt.objectname || evt.resource;
-          const deviceState = (evt.devicestate || '').toUpperCase();
-          const status = deviceState && deviceState !== 'UNAVAILABLE' ? 'active' : 'inactive';
-          if (extension) endpoints.push({ extension, status });
-        } else if (eventName === 'endpointlistcomplete') {
+        if (eventName === 'peerentry') {
+          const objectName = evt.objectname || '';
+          if (!EXTENSION_NAME_RE.test(objectName)) return; // trunk — excluded (R23)
+
+          const peerStatus = (evt.status || '').toUpperCase();
+          const status = peerStatus.startsWith('OK') || peerStatus.startsWith('LAGGED') ? 'active' : 'inactive';
+          peers.push({ extension: objectName, status });
+        } else if (eventName === 'peerlistcomplete') {
           cleanup();
-          resolve(endpoints);
+          resolve(peers);
         }
       }
 
@@ -102,14 +117,13 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
 
       ami.on('managerevent', onManagerEvent);
 
-      ami.action({ action: 'PJSIPShowEndpoints' }, (err) => {
+      ami.action({ action: 'SIPpeers' }, (err) => {
         if (err) {
           cleanup();
           reject(err instanceof Error ? err : new Error(String(err.message || 'Error AMI')));
         }
-        // On success, the response itself carries no endpoint data — the
-        // endpoints arrive as `EndpointList`/`EndpointListComplete` events
-        // handled above.
+        // On success, the response itself carries no peer data — the peers
+        // arrive as `PeerEntry`/`PeerlistComplete` events handled above.
       });
     });
   }
@@ -122,20 +136,20 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
     let timeoutHandle;
 
     try {
-      const endpoints = await Promise.race([
-        queryEndpoints(),
+      const peers = await Promise.race([
+        queryPeers(),
         new Promise((_resolve, reject) => {
           timeoutHandle = setTimeout(() => reject(new Error('Timeout al consultar extensiones AMI')), timeoutMs);
         }),
       ]);
 
-      const total  = endpoints.length;
-      const active = endpoints.filter(e => e.status === 'active').length;
+      const total  = peers.length;
+      const active = peers.filter(e => e.status === 'active').length;
 
-      state = { total, active, extensions: endpoints, available: true };
+      state = { total, active, extensions: peers, available: true };
       hasSucceededOnce = true;
     } catch (err) {
-      console.error('[ami] PJSIPShowEndpoints failed:', err.message);
+      console.error('[ami] SIPpeers failed:', err.message);
       if (!hasSucceededOnce) {
         state = { ...EMPTY_STATE };
       }

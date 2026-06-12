@@ -8,6 +8,7 @@
     "timezone": "-05:00"
   },
   "ami": {
+    "_comment": "El usuario AMI configurado en manager.conf debe incluir la clase 'reporting' en sus permisos de lectura, por ejemplo: read = system,call,agent,user,reporting. Sin la clase 'reporting', la accion AMI 'SIPpeers' (usada para el estado de extensiones) puede fallar o devolver una lista vacia.",
     "host": "192.168.x.x",
     "port": 5038,
     "username": "monitor-readonly",
