@@ -326,7 +326,13 @@ async function startServer() {
   const createPbxHealthService = require('./services/pbxHealthService');
   const pbxHealthService = createPbxHealthService(pool, broadcast);
   pbxHealthService.start(15_000);
-  app.use('/api', require('./routes/pbx')(pool, config, db, requireAuth, pbxHealthService));
+
+  // ── AMI extensions status (feature dashboard_extensions_status) ─
+  const createAmiExtensionsService = require('./services/amiExtensionsService');
+  const amiExtensionsService = createAmiExtensionsService(config.ami);
+  amiExtensionsService.start(30_000);
+
+  app.use('/api', require('./routes/pbx')(pool, config, db, requireAuth, pbxHealthService, amiExtensionsService));
 
   // ── Alertas y monitoreo (feature alerts_monitoring) ─────────────
   const createMailService = require('./services/mailService');

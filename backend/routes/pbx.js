@@ -10,8 +10,9 @@ const express = require('express');
  * @param {import('better-sqlite3').Database} db
  * @param {(req, res, next) => void} requireAuth
  * @param {ReturnType<typeof import('../services/pbxHealthService')>} pbxHealthService
+ * @param {ReturnType<typeof import('../services/amiExtensionsService')>} amiExtensionsService
  */
-module.exports = function pbxRouter(pool, config, db, requireAuth, pbxHealthService) {
+module.exports = function pbxRouter(pool, config, db, requireAuth, pbxHealthService, amiExtensionsService) {
   const router = express.Router();
 
   // GET /api/pbx/health
@@ -33,6 +34,17 @@ module.exports = function pbxRouter(pool, config, db, requireAuth, pbxHealthServ
     } catch (err) {
       console.error('[pbx] POST /pbx/sync:', err.message);
       res.status(500).json({ ok: false, error: 'Error al verificar el estado del PBX' });
+    }
+  });
+
+  // GET /api/pbx/extensions
+  router.get('/pbx/extensions', requireAuth, (req, res) => {
+    try {
+      const status = amiExtensionsService.getStatus();
+      res.json({ ok: true, data: status });
+    } catch (err) {
+      console.error('[pbx] GET /pbx/extensions:', err.message);
+      res.status(500).json({ ok: false, error: 'Error al obtener el estado de las extensiones' });
     }
   });
 

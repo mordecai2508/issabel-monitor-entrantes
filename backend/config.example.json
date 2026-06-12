@@ -7,6 +7,12 @@
     "database": "asteriskcdrdb",
     "timezone": "-05:00"
   },
+  "ami": {
+    "host": "192.168.x.x",
+    "port": 5038,
+    "username": "monitor-readonly",
+    "password": "yourpassword"
+  },
   "server": {
     "port": 4000,
     "sessionSecret": "cambia-esto-por-una-cadena-aleatoria-larga-y-segura",

@@ -73,6 +73,8 @@ export const api = {
   // PBX health monitoring
   pbxHealth: ()                          => req('GET',  '/api/pbx/health'),
   pbxSync:   ()                          => req('POST', '/api/pbx/sync'),
+  // Extensions status (AMI)
+  pbxExtensions: ()                      => req('GET',  '/api/pbx/extensions'),
   // Alerts monitoring
   activeAlerts:    ()         => req('GET',    '/api/alerts/active'),
   resolveAlert:    (id)       => req('PATCH',  `/api/alerts/${id}/resolve`),

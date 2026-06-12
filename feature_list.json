@@ -312,6 +312,26 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 18,
+      "name": "dashboard_extensions_status",
+      "title": "Estado de extensiones del PBX (total y activas) en el dashboard",
+      "description": "Conectar vía AMI (Asterisk Manager Interface, solo lectura) al servidor Issabel para consultar los endpoints PJSIP/SIP configurados y su estado de registro. Mostrar en el dashboard principal el número total de extensiones configuradas en el PBX y cuántas de ellas están actualmente registradas/activas.",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "Nuevo bloque config.ami = { host, port, username, password } en config.json y config.example.json, análogo al bloque 'db' (credenciales separadas, solo lectura)",
+        "El backend abre una conexión AMI (p.ej. vía paquete asterisk-manager) y consulta los endpoints PJSIP configurados y su estado de registro (PJSIPShowEndpoints o equivalente)",
+        "GET /api/pbx/extensions (requireAuth) retorna { ok: true, data: { total, active, extensions: [{ extension, status }] } }",
+        "El backend cachea/actualiza el resultado periódicamente (reutilizando el mismo ciclo de polling que pbx_health/SSE) sin bloquear el resto del dashboard",
+        "El dashboard principal muestra dos indicadores: 'Extensiones' (total) y 'Activas' (registradas)",
+        "Si config.ami no está configurado o la conexión AMI falla, el endpoint retorna { ok: true, data: { total: 0, active: 0, extensions: [], available: false } } y el dashboard se degrada sin romper el resto de KPIs (mismo patrón de tolerancia a fallos que pbx_health)",
+        "Tests: AMI configurado y respondiendo, AMI no configurado, fallo de conexión AMI (mock)"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

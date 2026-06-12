@@ -1,14 +1,18 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Phone, PhoneOff, PhoneMissed, AlertTriangle, PhoneCall,
   PhoneIncoming, PhoneOutgoing,
-  Wifi, WifiOff, RefreshCw, Users,
+  Wifi, WifiOff, RefreshCw, Users, UserCheck,
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { DispositionChart } from './DispositionChart';
 import { HourlyChart } from './HourlyChart';
 import { ChannelTable } from './ChannelTable';
 import { useSSE } from '../hooks/useSSE';
+import { api } from '../api';
+
+const EXTENSIONS_POLL_MS = 30000;
+const EMPTY_EXTENSIONS_STATUS = { total: 0, active: 0, extensions: [], available: false };
 
 function fmtTime(isoStr) {
   if (!isoStr) return '—';
@@ -75,6 +79,31 @@ export default function Dashboard() {
   const handleData = useCallback((d) => setData(d), []);
   const { connected } = useSSE('/api/events', { onInit: handleData, onUpdate: handleData });
 
+  // Extensions status (AMI) — REST polling, independent of SSE (R14-R17).
+  const [extensionsData, setExtensionsData] = useState(EMPTY_EXTENSIONS_STATUS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function loadExtensions() {
+      api.pbxExtensions()
+        .then(res => {
+          if (!cancelled) setExtensionsData(res.data ?? EMPTY_EXTENSIONS_STATUS);
+        })
+        .catch(() => {
+          if (!cancelled) setExtensionsData(EMPTY_EXTENSIONS_STATUS);
+        });
+    }
+
+    loadExtensions();
+    const interval = setInterval(loadExtensions, EXTENSIONS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
   const disp           = data?.stats?.dispositions;
   const total          = data?.stats?.total ?? 0;
   const channels       = data?.inbound?.channels ?? [];
@@ -137,6 +166,15 @@ export default function Dashboard() {
               sub="del total" pct={answeredPct} />
             <StatCard label="Perdidas"       value={noAnswer}  icon={PhoneMissed} color="red"
               sub="no efectivas, del total" pct={lostPct} />
+          </div>
+
+          {/* Estado de extensiones (AMI) */}
+          <div
+            className={`grid grid-cols-2 gap-4 ${extensionsData.available ? '' : 'opacity-50'}`}
+            title={extensionsData.available ? undefined : 'Estado de extensiones no disponible'}
+          >
+            <StatCard label="Extensiones" value={extensionsData.total}  icon={Users}     color="slate" />
+            <StatCard label="Activas"     value={extensionsData.active} icon={UserCheck} color="green" />
           </div>
 
           {/* Ocupado + Fallidas + resumen de duración/canales */}
