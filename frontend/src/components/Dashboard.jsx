@@ -74,6 +74,43 @@ function QueueCard({ queue }) {
   );
 }
 
+const UNANSWERED_REASONS = [
+  { key: 'no_answer',      label: 'Sin respuesta' },
+  { key: 'ivr_hangup',     label: 'Colgó en IVR' },
+  { key: 'queue_no_agent', label: 'Cola sin agente' },
+];
+
+const REASON_COLOR_CLASS = {
+  no_answer:      'text-amber-400',
+  ivr_hangup:     'text-slate-400',
+  queue_no_agent: 'text-red-400',
+};
+
+function UnansweredBreakdownCard({ breakdown, noAnswerTotal }) {
+  const b = breakdown ?? { no_answer: 0, ivr_hangup: 0, queue_no_agent: 0 }; // R19
+
+  return (
+    <div className="card flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-slate-200">Detalle de Perdidas</span>
+        <span className="text-2xl font-bold text-slate-100">{noAnswerTotal}</span>
+      </div>
+      <div className="space-y-2">
+        {UNANSWERED_REASONS.map(({ key, label }) => {
+          const count = b[key] ?? 0;
+          const pct = noAnswerTotal > 0 ? Math.round((count / noAnswerTotal) * 1000) / 10 : 0; // R17
+          return (
+            <div key={key} className="flex items-center justify-between text-xs text-slate-500">
+              <span>{label}</span>
+              <span className={`font-medium ${REASON_COLOR_CLASS[key]}`}>{count} ({pct}%)</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const handleData = useCallback((d) => setData(d), []);
@@ -121,6 +158,8 @@ export default function Dashboard() {
   const busyPct     = disp?.BUSY?.pct          ?? 0;
   const failedPct   = disp?.FAILED?.pct        ?? 0;
 
+  const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown; // R19: puede ser undefined
+
   const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
   const outboundTotal = data?.outbound?.stats?.total ?? 0;
   const inboundPct  = total > 0 ? Math.round((inboundTotal  / total) * 1000) / 10 : 0;
@@ -166,6 +205,11 @@ export default function Dashboard() {
               sub="del total" pct={answeredPct} />
             <StatCard label="Perdidas"       value={noAnswer}  icon={PhoneMissed} color="red"
               sub="no efectivas, del total" pct={lostPct} />
+          </div>
+
+          {/* Desglose de 'Perdidas' por motivo (#22) */}
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4">
+            <UnansweredBreakdownCard breakdown={noAnswerBreakdown} noAnswerTotal={noAnswer} />
           </div>
 
           {/* Estado de extensiones (AMI) */}

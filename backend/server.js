@@ -124,6 +124,29 @@ function resolveDisposition(row, lostDests) {
   return targetKey;
 }
 
+// ── Desglose de motivo de 'NO ANSWER' (#22) ───────────────────────
+// Solo debe llamarse cuando resolveDisposition(row, lostDests) === 'NO ANSWER'.
+// Devuelve 'ivr_hangup' | 'queue_no_agent' | 'no_answer' (R1, R4-R7).
+function classifyUnansweredReason(row, lostDests) {
+  // R5/R1.1: dst en lostDestinations → 'ivr_hangup', tiene prioridad sobre
+  // 'no_answer' aunque la disposition original ya fuera 'NO ANSWER'
+  // (evita doble conteo, R5).
+  if (lostDests.includes(row.dst)) {
+    return 'ivr_hangup';
+  }
+
+  // R6/R1.2: disposition original ANSWERED reclasificada por #21
+  // (dstchannel sin agente) → 'queue_no_agent'.
+  const d = row.disposition.toUpperCase();
+  if (d === 'ANSWERED' && !AGENT_DSTCHANNEL_RE.test(row.dstchannel || '')) {
+    return 'queue_no_agent';
+  }
+
+  // R4/R1.3: caso puro — disposition original ya era 'NO ANSWER' y dst no
+  // está en lostDestinations.
+  return 'no_answer';
+}
+
 async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
@@ -142,7 +165,10 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
 
   const base = {
     ANSWERED:    { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
-    'NO ANSWER': { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
+    'NO ANSWER': {
+      count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0,
+      breakdown: { no_answer: 0, ivr_hangup: 0, queue_no_agent: 0 },
+    },
     BUSY:        { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
     FAILED:      { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
   };
@@ -156,6 +182,12 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
       base[targetKey].count          += Number(r.count);
       base[targetKey].total_duration += Number(r.total_duration);
       base[targetKey].total_billsec  += Number(r.total_billsec);
+
+      // R8: desglose adicional, solo para 'NO ANSWER'
+      if (targetKey === 'NO ANSWER') {
+        const reason = classifyUnansweredReason(r, lostDests);
+        base['NO ANSWER'].breakdown[reason] += Number(r.count);
+      }
     }
     total += Number(r.count);
   }

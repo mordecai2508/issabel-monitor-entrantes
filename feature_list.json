@@ -396,6 +396,26 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 22,
+      "name": "dashboard_unanswered_breakdown",
+      "title": "Desglose por motivo de las llamadas no contestadas ('Perdidas') en el dashboard",
+      "description": "La tarjeta 'Perdidas' del dashboard (suma de #16/#17/#21) muestra un total agregado, pero el usuario necesita entender la composición de ese total. Esta feature añade un desglose por motivo dentro de 'Perdidas', reutilizando la lógica ya existente en resolveDisposition (backend/server.js): (a) 'no_answer' = disposition original NO ANSWER sin reclasificación adicional (timbró y nadie contestó), (b) 'ivr_hangup' = dst en config.lostDestinations (el cliente colgó en el IVR/menú, #17), (c) 'queue_no_agent' = disposition='ANSWERED' reclasificada por #21 (llegó a una cola pero nunca se bridgeó a un Agent/<n> o extensión numérica). La suma de las tres subcategorías debe ser exactamente igual al valor actual de 'Perdidas'. Se muestra como una nueva sección/tarjeta en el Dashboard principal (no una vista nueva).",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "queryStats (o una nueva función que reutilice resolveDisposition) calcula, además del total de 'Perdidas', un desglose { no_answer, ivr_hangup, queue_no_agent } cuya suma es exactamente igual a dispositions['NO ANSWER'].count",
+        "Una llamada con disposition='NO ANSWER' y dst NO en config.lostDestinations se clasifica en 'no_answer'",
+        "Una llamada con dst en config.lostDestinations (cualquier disposition original) se clasifica en 'ivr_hangup', sin doble conteo con 'no_answer' (si disposition original ya era NO ANSWER y dst en lostDestinations, cuenta una sola vez, en 'ivr_hangup' o 'no_answer' según se defina en el spec, pero nunca en ambas)",
+        "Una llamada con disposition='ANSWERED', dst NO en lostDestinations, y dstchannel que no matchea /^Agent\\/\\d+/ ni /^SIP\\/\\d+-/ (reclasificación de #21) se clasifica en 'queue_no_agent'",
+        "/api/calls/today, /api/calls/range y los eventos SSE init/update incluyen el nuevo desglose dentro de dispositions['NO ANSWER'] (o campo equivalente) sin romper la forma actual del payload para clientes existentes",
+        "El Dashboard principal muestra una nueva sección/tarjeta con las 3 subcategorías (etiquetas en español, p.ej. 'Sin respuesta', 'Colgó en IVR', 'Cola sin agente') y sus conteos/porcentajes, ubicada junto a o debajo de la tarjeta 'Perdidas' existente",
+        "Tests: cada subcategoría clasifica correctamente registros de ejemplo, la suma de las 3 subcategorías es igual a 'Perdidas', sin doble conteo entre 'ivr_hangup' y 'no_answer', payload de /api/calls/today incluye el desglose"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

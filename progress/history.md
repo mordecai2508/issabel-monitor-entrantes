@@ -4,6 +4,33 @@
 
 ---
 
+## Sesión 2026-06-13 — dashboard_unanswered_breakdown
+
+**Feature completada:** #22 `dashboard_unanswered_breakdown` — Desglose por motivo de las llamadas no contestadas ('Perdidas') en el dashboard
+
+**Resumen:**
+- Spec redactada (R1-R23, sin endpoints/queries/deps nuevos) y aprobada por el humano.
+- Nueva función hermana `classifyUnansweredReason(row, lostDests)` junto a
+  `resolveDisposition` (#21): cuando el resultado es 'NO ANSWER', clasifica en
+  `ivr_hangup` (dst en lostDestinations) → `queue_no_agent` (ANSWERED sin
+  dstchannel de agente, #21) → `no_answer` (NO ANSWER puro), first-match-wins,
+  mutuamente excluyentes.
+- `queryStats` añade `dispositions['NO ANSWER'].breakdown = { no_answer,
+  ivr_hangup, queue_no_agent }`, cuya suma = `dispositions['NO ANSWER'].count`.
+  `queryChannels`/`queryHourly`/`queryQueues` sin cambios (fuera de alcance,
+  documentado).
+- Frontend: nuevo componente `UnansweredBreakdownCard` en Dashboard.jsx, junto
+  a la tarjeta 'Perdidas', con las 3 subcategorías en español ('Sin respuesta',
+  'Colgó en IVR', 'Cola sin agente') y sus conteos/%.
+- Tests: 331/331 passing. Build frontend: ✅. Review: APROBADO.
+- Commit: `feat(dashboard_unanswered_breakdown): ...` (pendiente de hash, ver git log)
+
+**Siguiente feature pendiente:** ninguna. #1-#22 todas `done` en
+`feature_list.json`. A la espera de que el usuario añada nuevas features al
+backlog.
+
+---
+
 ## Sesión 2026-06-13 — disposition_agent_answered_fix
 
 **Feature completada:** #21 `disposition_agent_answered_fix` — Distinguir llamadas atendidas por un agente de llamadas solo contestadas por IVR/cola sin agente
