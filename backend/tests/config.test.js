@@ -91,7 +91,7 @@ function buildApp(opts = {}) {
   const config = opts.config ?? {
     server: { sessionSecret: 'test-secret' },
     db: { timezone: '-05:00' },
-    channels: ['SIP/troncal-claro'],
+    channels: { inbound: ['SIP/troncal-claro'], outbound: [] },
     channelAliases: {},
     app: { name: 'Call Monitor' },
   };
@@ -145,11 +145,17 @@ function buildApp(opts = {}) {
 
   app.get('/api/admin/channels', requireAdmin, (req, res) => {
     const aliases = getAliases();
-    const channels = (config.channels || []).map(ch => ({
+    const inbound  = (config.channels.inbound  || []).map(ch => ({
       channel: ch,
+      direction: 'inbound',
       alias: aliases[ch] || '',
     }));
-    res.json({ ok: true, channels });
+    const outbound = (config.channels.outbound || []).map(ch => ({
+      channel: ch,
+      direction: 'outbound',
+      alias: aliases[ch] || '',
+    }));
+    res.json({ ok: true, channels: [...inbound, ...outbound] });
   });
 
   app.put('/api/admin/channels/:channel', requireAdmin, (req, res) => {
@@ -157,7 +163,7 @@ function buildApp(opts = {}) {
     const { alias } = req.body || {};
     if (typeof alias !== 'string')
       return res.status(400).json({ ok: false, error: 'El campo alias es requerido' });
-    if (!(config.channels || []).includes(channel))
+    if (!config.channels.inbound.includes(channel) && !config.channels.outbound.includes(channel))
       return res.status(404).json({ ok: false, error: 'Canal no encontrado' });
 
     if (!config.channelAliases) config.channelAliases = {};
@@ -767,6 +773,84 @@ describe('GET /api/admin/trunks (soporte UI)', () => {
   });
 });
 
+// ── R18-R21 — GET/PUT /api/admin/channels (feature #20) ──────────────────────────
+
+describe('R18-R21 - GET/PUT /api/admin/channels (channels_inbound_outbound_split)', () => {
+  function buildChannelsApp() {
+    return buildApp({
+      sessionUser: ADMIN,
+      config: {
+        server: { sessionSecret: 'test-secret' },
+        db: { timezone: '-05:00' },
+        channels: {
+          inbound:  ['SIP/ENT_LIWA', 'SIP/NET2_ENT_6076854970'],
+          outbound: ['SIP/SALIENTE_CALL'],
+        },
+        channelAliases: { 'SIP/ENT_LIWA': 'Liwa' },
+        app: { name: 'Call Monitor' },
+      },
+    });
+  }
+
+  it('R18 - GET /api/admin/channels devuelve direction inbound/outbound por canal', async () => {
+    const { app } = buildChannelsApp();
+    const res = await request(app).get('/api/admin/channels').expect(200);
+
+    expect(res.body.ok).toBe(true);
+    const liwa = res.body.channels.find(c => c.channel === 'SIP/ENT_LIWA');
+    expect(liwa).toEqual({ channel: 'SIP/ENT_LIWA', direction: 'inbound', alias: 'Liwa' });
+
+    const saliente = res.body.channels.find(c => c.channel === 'SIP/SALIENTE_CALL');
+    expect(saliente).toEqual({ channel: 'SIP/SALIENTE_CALL', direction: 'outbound', alias: '' });
+  });
+
+  it('R19 - un canal presente en ambas listas aparece dos veces, una por dirección', async () => {
+    const { app } = buildApp({
+      sessionUser: ADMIN,
+      config: {
+        server: { sessionSecret: 'test-secret' },
+        db: { timezone: '-05:00' },
+        channels: {
+          inbound:  ['SIP/AMBOS'],
+          outbound: ['SIP/AMBOS'],
+        },
+        channelAliases: {},
+        app: { name: 'Call Monitor' },
+      },
+    });
+
+    const res = await request(app).get('/api/admin/channels').expect(200);
+    const entries = res.body.channels.filter(c => c.channel === 'SIP/AMBOS');
+
+    expect(entries).toHaveLength(2);
+    expect(entries.map(e => e.direction).sort()).toEqual(['inbound', 'outbound']);
+  });
+
+  it('R20 - PUT /api/admin/channels/:channel actualiza el alias de un canal de channels.outbound', async () => {
+    const { app, tmpConfigFile } = buildChannelsApp();
+
+    const res = await request(app)
+      .put(`/api/admin/channels/${encodeURIComponent('SIP/SALIENTE_CALL')}`)
+      .send({ alias: 'Troncal Saliente' })
+      .expect(200);
+
+    expect(res.body).toEqual({ ok: true, alias: 'Troncal Saliente' });
+    if (fs.existsSync(tmpConfigFile)) fs.unlinkSync(tmpConfigFile);
+  });
+
+  it('R21 - PUT /api/admin/channels/:channel devuelve 404 si el canal no está en inbound ni outbound', async () => {
+    const { app, tmpConfigFile } = buildChannelsApp();
+
+    const res = await request(app)
+      .put(`/api/admin/channels/${encodeURIComponent('SIP/NO_EXISTE')}`)
+      .send({ alias: 'X' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.ok).toBe(false);
+    if (fs.existsSync(tmpConfigFile)) fs.unlinkSync(tmpConfigFile);
+  });
+});
+
 // ── R39 — no-regresión de endpoints existentes ──────────────────────────────────
 
 describe('R39 - no-regresión de endpoints existentes', () => {
@@ -783,12 +867,12 @@ describe('R39 - no-regresión de endpoints existentes', () => {
     if (fs.existsSync(tmpConfigFile)) fs.unlinkSync(tmpConfigFile);
   });
 
-  it('GET /api/admin/channels sigue respondiendo igual que antes', async () => {
+  it('GET /api/admin/channels sigue respondiendo igual que antes (con direction añadido, feature #20)', async () => {
     const { app } = buildApp({ sessionUser: ADMIN });
     const res = await request(app).get('/api/admin/channels').expect(200);
     expect(res.body.ok).toBe(true);
     expect(Array.isArray(res.body.channels)).toBe(true);
-    expect(res.body.channels[0]).toEqual({ channel: 'SIP/troncal-claro', alias: '' });
+    expect(res.body.channels[0]).toEqual({ channel: 'SIP/troncal-claro', direction: 'inbound', alias: '' });
   });
 
   it('PUT /api/admin/channels/:channel sigue respondiendo igual que antes', async () => {
@@ -799,5 +883,81 @@ describe('R39 - no-regresión de endpoints existentes', () => {
       .expect(200);
     expect(res.body).toEqual({ ok: true, alias: 'Claro' });
     if (fs.existsSync(tmpConfigFile)) fs.unlinkSync(tmpConfigFile);
+  });
+});
+
+// ── R2-R5 — migración de config.channels (feature #20) ──────────────────────────
+//
+// NOTE: backend/server.js es un script autoejecutable (no exporta loadConfig).
+// Este bloque define una RÉPLICA LOCAL de la lógica de migración de
+// config.channels añadida a loadConfig() en server.js (R2-R5), que debe
+// mantenerse idéntica a la implementación real.
+
+/** Mirrors the config.channels migration block added to loadConfig() in server.js (R2-R5) */
+function migrateChannels(raw) {
+  let changed = false;
+  if (Array.isArray(raw.channels)) {
+    raw.channels = { inbound: raw.channels, outbound: [] };
+    changed = true;
+  } else if (raw.channels && typeof raw.channels === 'object') {
+    raw.channels.inbound  = raw.channels.inbound  || [];
+    raw.channels.outbound = raw.channels.outbound || [];
+  } else {
+    raw.channels = { inbound: [], outbound: [] };
+  }
+  return changed;
+}
+
+describe('R2-R5 - migración de config.channels (array plano -> {inbound, outbound})', () => {
+  it('R2 - debe migrar config.channels de array plano a {inbound, outbound:[]}', () => {
+    const raw = { channels: ['SIP/ENT_LIWA', 'SIP/NET2_ENT_6076854970'] };
+    const changed = migrateChannels(raw);
+
+    expect(changed).toBe(true);
+    expect(raw.channels).toEqual({ inbound: ['SIP/ENT_LIWA', 'SIP/NET2_ENT_6076854970'], outbound: [] });
+  });
+
+  it('R3 - la migración no debe perder channelAliases ni otras claves de config.json', () => {
+    const raw = {
+      db: { host: 'localhost' },
+      channels: ['SIP/ENT_LIWA'],
+      channelAliases: { 'SIP/ENT_LIWA': 'Liwa' },
+      queues: ['8000'],
+      lostDestinations: ['s', 'hang', 'hangup'],
+      app: { name: 'Call Monitor' },
+    };
+    const changed = migrateChannels(raw);
+
+    expect(changed).toBe(true);
+    expect(raw.channels).toEqual({ inbound: ['SIP/ENT_LIWA'], outbound: [] });
+    expect(raw.channelAliases).toEqual({ 'SIP/ENT_LIWA': 'Liwa' });
+    expect(raw.db).toEqual({ host: 'localhost' });
+    expect(raw.queues).toEqual(['8000']);
+    expect(raw.lostDestinations).toEqual(['s', 'hang', 'hangup']);
+    expect(raw.app).toEqual({ name: 'Call Monitor' });
+  });
+
+  it('R4 - si config.channels ya es {inbound, outbound} no se reescribe config.json', () => {
+    const raw = { channels: { inbound: ['SIP/ENT_LIWA'], outbound: ['SIP/SALIENTE_CALL'] } };
+    const changed = migrateChannels(raw);
+
+    expect(changed).toBe(false);
+    expect(raw.channels).toEqual({ inbound: ['SIP/ENT_LIWA'], outbound: ['SIP/SALIENTE_CALL'] });
+  });
+
+  it('R4 - si config.channels ya es {inbound, outbound} pero falta una lista, se usa [] sin marcar changed', () => {
+    const raw = { channels: { inbound: ['SIP/ENT_LIWA'] } };
+    const changed = migrateChannels(raw);
+
+    expect(changed).toBe(false);
+    expect(raw.channels).toEqual({ inbound: ['SIP/ENT_LIWA'], outbound: [] });
+  });
+
+  it('R5 - si config.channels no existe, se usan listas vacías sin error', () => {
+    const raw = {};
+    const changed = migrateChannels(raw);
+
+    expect(changed).toBe(false);
+    expect(raw.channels).toEqual({ inbound: [], outbound: [] });
   });
 });

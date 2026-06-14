@@ -95,7 +95,7 @@ function buildApp({
   const fullConfig = {
     server: { sessionSecret: 'test-secret', pollIntervalMs: 30000 },
     lostDestinations: ['s', 'hang', 'hangup'],
-    channels: [],
+    channels: { inbound: [], outbound: [] },
     ...config,
   };
 
@@ -527,7 +527,7 @@ describe('evaluateOnce — pbx_disconnect (R18/R19)', () => {
     const db = createTestDb();
     const broadcast = jest.fn();
     const mailService = { sendAlertEmail: jest.fn().mockResolvedValue(undefined) };
-    const config = { server: { pollIntervalMs: 30000 }, lostDestinations: ['s', 'hang', 'hangup'], channels: [] };
+    const config = { server: { pollIntervalMs: 30000 }, lostDestinations: ['s', 'hang', 'hangup'], channels: { inbound: [], outbound: [] } };
 
     const alertService = createAlertService(pool, config, db, broadcast, pbxHealthService, mailService);
 
@@ -558,7 +558,7 @@ describe('evaluateOnce — trunk_down (R20-R22)', () => {
 
     const { app, alertService, db } = buildApp({
       poolQueryImpl,
-      config: { channels: ['SIP/troncal-pstn'] },
+      config: { channels: { inbound: ['SIP/troncal-pstn'], outbound: [] } },
     });
 
     await request(app).post('/api/admin/alerts/rules').send({ type: 'trunk_down', threshold: 30 });
@@ -576,7 +576,7 @@ describe('evaluateOnce — trunk_down (R20-R22)', () => {
 
     const { app, alertService, db } = buildApp({
       poolQueryImpl,
-      config: { channels: ['SIP/troncal-pstn'] },
+      config: { channels: { inbound: ['SIP/troncal-pstn'], outbound: [] } },
     });
 
     await request(app).post('/api/admin/alerts/rules').send({ type: 'trunk_down', threshold: 30 });
@@ -594,7 +594,7 @@ describe('evaluateOnce — trunk_down (R20-R22)', () => {
 
     const { app, alertService, db } = buildApp({
       poolQueryImpl,
-      config: { channels: ['SIP/troncal-pstn'] },
+      config: { channels: { inbound: ['SIP/troncal-pstn'], outbound: [] } },
     });
 
     await request(app).post('/api/admin/alerts/rules').send({ type: 'trunk_down', threshold: 30 });
@@ -610,7 +610,7 @@ describe('evaluateOnce — trunk_down (R20-R22)', () => {
 
     const { app, alertService, db } = buildApp({
       poolQueryImpl,
-      config: { channels: [] },
+      config: { channels: { inbound: [], outbound: [] } },
     });
 
     await request(app).post('/api/admin/alerts/rules').send({ type: 'trunk_down', threshold: 30 });

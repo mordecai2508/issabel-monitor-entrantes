@@ -59,7 +59,7 @@ function buildApp(poolQueryImpl, sessionUser = { id: 1, username: 'tester', role
 
   const effectiveConfig = {
     server: { sessionSecret: 'test-secret' },
-    channels: [],
+    channels: { inbound: [], outbound: [] },
     ...config,
   };
 
@@ -286,6 +286,69 @@ describe('GET /api/calls/outbound', () => {
       .expect(401);
 
     expect(res.body.ok).toBe(false);
+  });
+
+  it('R17 - debe devolver solo canales de channels.outbound (LIKE explícito), no por exclusión de inbound', async () => {
+    const rows = [makeCdrRow({ dstchannel: 'SIP/SALIENTE_CALL-00b3c4d5' })];
+    const queryFn = mockListQuery(rows, 1);
+    const app = buildApp(queryFn, undefined, {
+      channels: { inbound: ['SIP/ENT_LIWA'], outbound: ['SIP/SALIENTE_CALL'] },
+    });
+
+    const res = await request(app)
+      .get('/api/calls/outbound?from=2026-06-01&to=2026-06-08')
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+
+    // El WHERE generado debe usar inclusión explícita LIKE CONCAT(?, '%') con
+    // el canal de channels.outbound, no NOT LIKE de channels.inbound.
+    const dataSql = queryFn.mock.calls[1][0];
+    expect(dataSql).toMatch(/channel LIKE CONCAT\(\?, '%'\)/);
+    expect(dataSql).not.toMatch(/NOT LIKE CONCAT/);
+
+    const allParams = queryFn.mock.calls.flatMap(c => c[1] || []);
+    expect(allParams).toContain('SIP/SALIENTE_CALL');
+    expect(allParams).not.toContain('SIP/ENT_LIWA');
+  });
+
+  it('R12 - no incluye llamadas extension-a-extension (canal fuera de channels.outbound)', async () => {
+    const queryFn = mockListQuery([], 0);
+    const app = buildApp(queryFn, undefined, {
+      channels: { inbound: ['SIP/ENT_LIWA'], outbound: ['SIP/SALIENTE_CALL'] },
+    });
+
+    const res = await request(app)
+      .get('/api/calls/outbound?from=2026-06-01&to=2026-06-08')
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+
+    const dataSql = queryFn.mock.calls[1][0];
+    // El WHERE solo permite canales que empiecen por 'SIP/SALIENTE_CALL';
+    // un canal de extensión interna (ej. SIP/201) no aparece en los params.
+    const allParams = queryFn.mock.calls.flatMap(c => c[1] || []);
+    expect(allParams).not.toContain('SIP/201');
+    expect(dataSql).toMatch(/channel NOT LIKE 'Local\/%'/);
+  });
+
+  it("R10 - con channels.outbound vacío devuelve data:[] y meta.total=0 con HTTP 200", async () => {
+    const queryFn = mockListQuery([], 0);
+    const app = buildApp(queryFn, undefined, {
+      channels: { inbound: ['SIP/ENT_LIWA'], outbound: [] },
+    });
+
+    const res = await request(app)
+      .get('/api/calls/outbound?from=2026-06-01&to=2026-06-08')
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.meta.total).toBe(0);
+
+    // El WHERE debe contener la condición constante '1 = 0'
+    const countSql = queryFn.mock.calls[0][0];
+    expect(countSql).toMatch(/1 = 0/);
   });
 });
 

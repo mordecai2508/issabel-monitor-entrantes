@@ -66,6 +66,9 @@ export default function ChannelAliasManager() {
                   Canal (técnico)
                 </th>
                 <th className="text-left text-xs text-slate-500 uppercase tracking-wider px-4 py-3 font-medium">
+                  Dirección
+                </th>
+                <th className="text-left text-xs text-slate-500 uppercase tracking-wider px-4 py-3 font-medium">
                   Nombre a mostrar
                 </th>
                 <th className="w-20" />
@@ -73,10 +76,19 @@ export default function ChannelAliasManager() {
             </thead>
             <tbody className="divide-y divide-slate-700/60">
               {channels.map(ch => (
-                <tr key={ch.channel} className="hover:bg-slate-700/30 transition-colors">
+                <tr key={`${ch.channel}-${ch.direction}`} className="hover:bg-slate-700/30 transition-colors">
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded">
                       {ch.channel}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      ch.direction === 'inbound'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {ch.direction === 'inbound' ? 'Entrante' : 'Saliente'}
                     </span>
                   </td>
                   <td className="px-4 py-3">

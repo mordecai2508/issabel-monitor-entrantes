@@ -256,7 +256,9 @@
       "name": "dashboard_lost_destinations",
       "title": "Ampliar 'Perdidas' para incluir llamadas con destino en lostDestinations (reclasificación)",
       "description": "La tarjeta 'Perdidas' del dashboard (feature #16) se calcula hoy como dispositions['NO ANSWER'].count. Esta feature amplía el criterio: una llamada también cuenta como 'Perdidas' si su campo dst está en config.lostDestinations (por defecto ['s','hang','hangup'], ya usado hoy por queryQueues/__lost__), sin importar su disposition. Para mantener Total = Contestadas + Perdidas + Ocupado + Fallidas (R2 de #16), las llamadas con dst en esa lista y disposition distinto de 'NO ANSWER' (p.ej. ANSWERED/BUSY/FAILED) se reclasifican: se restan de su categoría de disposición original y se suman a 'Perdidas' (sin doble conteo si ya eran NO ANSWER). Requiere modificar queryStats en backend/server.js (hoy agrupa solo por channel, disposition; necesita también dst y acceso a config.lostDestinations).",
-      "refs": ["RF-01"],
+      "refs": [
+        "RF-01"
+      ],
       "spec_ready": true,
       "acceptance": [
         "queryStats agrupa también por dst y aplica config.lostDestinations (default ['s','hang','hangup']) para reclasificar hacia 'Perdidas' los registros con dst en esa lista, sin importar su disposition original",
@@ -352,6 +354,48 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 20,
+      "name": "channels_inbound_outbound_split",
+      "title": "Separar canales/troncales entrantes y salientes para evitar contar llamadas extensión-extensión como salientes",
+      "description": "Actualmente config.json tiene una sola lista `channels` (troncales entrantes: SIP/ENT_LIWA, SIP/NET2_ENT_6076854970) usada por passesFilter(channel, allowedChannels, direction). Para direction='in' se incluye solo lo que está en la lista (correcto). Para direction='out' se incluye TODO lo que NO está en la lista (excepto Local/), lo cual incluye por error llamadas extensión-a-extensión (p.ej. channel=SIP/2XX-xxxx, dst=2YY) como si fueran salientes externas. Esta feature introduce una lista explícita de canales/troncales salientes (p.ej. SIP/SALIENTE_CALL) y corrige el filtrado para que 'saliente' solo cuente llamadas que realmente usan esa(s) troncal(es), no todo lo que no es entrante.",
+      "refs": [
+        "RF-01",
+        "RF-03"
+      ],
+      "acceptance": [
+        "config.json (y config.example.json) reemplaza la lista plana `channels` por una estructura que distingue troncales entrantes y salientes (p.ej. channels.inbound = [\"SIP/ENT_LIWA\",\"SIP/NET2_ENT_6076854970\"], channels.outbound = [\"SIP/SALIENTE_CALL\"]), con migración automática del formato antiguo (array plano) al arrancar si config.json existente solo tiene la lista plana",
+        "passesFilter (o equivalente) para direction='in' usa channels.inbound; para direction='out' usa channels.outbound de forma explícita, NO por exclusión de channels.inbound",
+        "Una llamada extensión-a-extensión (channel=SIP/2XX-xxxx, dst=SIP/2YY-xxxx, sin relación con channels.outbound) NO se cuenta en /api/calls/range?direction=out ni en OutboundView, queryStats, queryChannels, queryHourly",
+        "Una llamada saliente real (channel o dstchannel coincide con una troncal de channels.outbound) sigue contándose correctamente en OutboundView tras el cambio",
+        "ChannelAliasManager (admin) permite ver/gestionar ambas listas (entrantes y salientes) sin romper la gestión de alias existente",
+        "/api/calls/today, /api/calls/range y los eventos SSE init/update siguen funcionando con la nueva estructura de configuración",
+        "Tests: migración de config antiguo a nuevo formato, filtrado 'in' con channels.inbound, filtrado 'out' con channels.outbound excluyendo extensión-extensión, caso con channels.outbound vacío/no configurado"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 21,
+      "name": "disposition_agent_answered_fix",
+      "title": "Corrección: distinguir llamadas atendidas por un agente de llamadas solo contestadas por IVR/cola sin agente",
+      "description": "El CDR marca disposition='ANSWERED' tanto cuando un agente real atiende la llamada (dstchannel='Agent/03'/'Agent/04' o canal de extensión numérica) como cuando solo el IVR/cola reproduce un mensaje y el cliente cuelga sin ser atendido (dst='s'/'hangup'/cola con dstchannel vacío, sin Agent/<n>). La feature #17 ya reclasifica hacia 'Perdidas' los registros con dst en config.lostDestinations, pero solo en queryStats (KPIs del dashboard) y deja sin cubrir el caso de llamadas a una cola configurada (dst en config.queues) que nunca llegan a dstchannel='Agent/<n>'. Esta feature generaliza el criterio: una llamada solo cuenta como 'Contestada'/atendida por agente si dstchannel coincide con Agent/<n> o con un canal de extensión numérica (SIP/<n>-xxxx); en caso contrario se reclasifica como 'Perdidas'/no atendida, sin importar que disposition='ANSWERED', y de forma consistente en queryStats, queryChannels y queryHourly.",
+      "refs": [
+        "RF-01",
+        "RF-02"
+      ],
+      "acceptance": [
+        "Se define un criterio único 'atendida por agente' = dstchannel coincide con /^Agent\\/\\d+/ o con /^SIP\\/\\d+-/ (canal de extensión numérica); cualquier otro valor de dstchannel (vacío u otro) con disposition='ANSWERED' se reclasifica como no atendida/'Perdidas'",
+        "Una llamada con dst en config.queues (8000/8300), disposition='ANSWERED' y dstchannel vacío (sin Agent/<n>) se resta de 'Contestadas' y se suma a 'Perdidas', sin romper Total = Contestadas + Perdidas + Ocupado + Fallidas (de #16/#17)",
+        "Las llamadas con dst en config.lostDestinations (#17) siguen reclasificándose igual que hoy, sin doble conteo con el nuevo criterio de dstchannel",
+        "queryChannels y queryHourly aplican el mismo criterio de reclasificación (cierra la limitación conocida documentada en #17), de modo que ChannelTable, HourlyChart y DispositionChart son consistentes con el KPI 'Contestadas' del dashboard",
+        "Una llamada genuinamente atendida por un agente (dstchannel='Agent/03' o 'Agent/04', disposition='ANSWERED') sigue contando como 'Contestada' sin cambios",
+        "/api/calls/today, /api/calls/range y los eventos SSE init/update reflejan la reclasificación de forma consistente",
+        "Tests: dst=cola con dstchannel vacío y disposition=ANSWERED (reclasifica a Perdidas), dstchannel='Agent/03' (cuenta como Contestada), dst en lostDestinations sin doble conteo, consistencia entre queryStats/queryChannels/queryHourly tras la reclasificación"
+      ],
+      "sdd": true,
+      "status": "pending"
     }
   ]
 }

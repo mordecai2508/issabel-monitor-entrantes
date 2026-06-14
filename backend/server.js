@@ -51,9 +51,20 @@ async function loadConfig() {
       changed = true;
     }
   }
+  // Migración de config.channels: array plano (v1.0) → { inbound, outbound } (v2.0)
+  if (Array.isArray(raw.channels)) {
+    raw.channels = { inbound: raw.channels, outbound: [] };
+    changed = true;
+  } else if (raw.channels && typeof raw.channels === 'object') {
+    raw.channels.inbound  = raw.channels.inbound  || [];
+    raw.channels.outbound = raw.channels.outbound || [];
+  } else {
+    raw.channels = { inbound: [], outbound: [] };
+  }
+
   if (changed) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(raw, null, 2), 'utf8');
-    console.log('[CONFIG] Contraseñas hasheadas con bcrypt y guardadas.');
+    console.log('[CONFIG] Contraseñas hasheadas con bcrypt y/o config.channels migrado y guardado.');
   }
 
   return raw;
@@ -69,19 +80,25 @@ function extractChannel(raw) {
 }
 
 // ── Queries CDR ───────────────────────────────────────────────────
-// direction: 'in' = solo allowedChannels, 'out' = excluir allowedChannels, null = todos
-function passesFilter(channel, allowedChannels, direction) {
-  if (!allowedChannels || allowedChannels.length === 0) return direction !== 'out';
+// direction: 'in' = solo channels.inbound, 'out' = solo channels.outbound (explícito), null = todos
+// inboundChannels y outboundChannels son arrays (pueden estar vacíos, nunca null/undefined)
+function passesFilter(channel, inboundChannels, outboundChannels, direction) {
   const ch = extractChannel(channel);
-  // Canales internos (Local/) nunca son salientes externos
-  if (direction === 'out' && ch.startsWith('Local/')) return false;
-  const inList = allowedChannels.includes(ch);
-  if (direction === 'in')  return inList;
-  if (direction === 'out') return !inList;
-  return true;
+
+  if (direction === 'out') {
+    // Canales internos (Local/) nunca son salientes externos
+    if (ch.startsWith('Local/')) return false;
+    return outboundChannels.includes(ch);
+  }
+
+  if (direction === 'in') {
+    return inboundChannels.includes(ch);
+  }
+
+  return true; // direction = null → todos
 }
 
-async function queryStats(pool, from, to, allowedChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
+async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -105,7 +122,7 @@ async function queryStats(pool, from, to, allowedChannels, direction = 'in', los
 
   let total = 0;
   for (const r of rows) {
-    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
+    if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
     const d = r.disposition.toUpperCase();
     const isLostDst = lostDests.includes(r.dst);
 
@@ -132,7 +149,7 @@ async function queryStats(pool, from, to, allowedChannels, direction = 'in', los
   return { dispositions: base, total };
 }
 
-async function queryChannels(pool, from, to, allowedChannels, direction = 'in') {
+async function queryChannels(pool, from, to, inboundChannels, outboundChannels, direction = 'in') {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -147,7 +164,7 @@ async function queryChannels(pool, from, to, allowedChannels, direction = 'in') 
 
   const map = {};
   for (const r of rows) {
-    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
+    if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
     const ch = extractChannel(r.channel);
     if (!map[ch]) {
       map[ch] = { channel: ch, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0, total_billsec: 0 };
@@ -163,7 +180,7 @@ async function queryChannels(pool, from, to, allowedChannels, direction = 'in') 
   return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
-async function queryHourly(pool, from, to, allowedChannels, direction = 'in') {
+async function queryHourly(pool, from, to, inboundChannels, outboundChannels, direction = 'in') {
   const [rows] = await pool.query(
     `SELECT
        channel,
@@ -183,7 +200,7 @@ async function queryHourly(pool, from, to, allowedChannels, direction = 'in') {
   }));
 
   for (const r of rows) {
-    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
+    if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
     const h = Number(r.hour);
     const d = r.disposition.toUpperCase();
     if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d)) {
@@ -195,7 +212,7 @@ async function queryHourly(pool, from, to, allowedChannels, direction = 'in') {
   return hours;
 }
 
-async function queryQueues(pool, from, to, allowedChannels, queues, lostDests) {
+async function queryQueues(pool, from, to, inboundChannels, outboundChannels, queues, lostDests) {
   if (!queues || queues.length === 0) return [];
 
   const [rows] = await pool.query(
@@ -214,7 +231,7 @@ async function queryQueues(pool, from, to, allowedChannels, queues, lostDests) {
   result['__lost__'] = { queue: '__lost__', label: 'Perdidas', total: 0, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
 
   for (const r of rows) {
-    if (!passesFilter(r.channel, allowedChannels, 'in')) continue;
+    if (!passesFilter(r.channel, inboundChannels, outboundChannels, 'in')) continue;
     if (!validDsts.has(r.dst)) continue;
     const key   = queues.includes(r.dst) ? r.dst : '__lost__';
     const d     = r.disposition.toUpperCase();
@@ -391,9 +408,10 @@ async function startServer() {
   });
 
   // ── Helper: obtener datos completos ──────────────────────────
-  const allowedChannels = config.channels && config.channels.length > 0 ? config.channels : null;
-  const configQueues    = config.queues         || [];
-  const lostDests       = config.lostDestinations || ['s', 'hang', 'hangup'];
+  const inboundChannels  = config.channels.inbound  || [];
+  const outboundChannels = config.channels.outbound || [];
+  const configQueues     = config.queues         || [];
+  const lostDests        = config.lostDestinations || ['s', 'hang', 'hangup'];
 
   function getAliases()  { return config.channelAliases || {}; }
   function getAppName()  { return config.app?.name || 'Call Monitor'; }
@@ -405,15 +423,15 @@ async function startServer() {
       outStats, outChannels,
       queues,
     ] = await Promise.all([
-      queryStats(pool, from, to, allowedChannels, null,  lostDests),
-      queryChannels(pool, from, to, allowedChannels, null),
-      queryHourly(pool, from, to, allowedChannels, null),
-      queryStats(pool, from, to, allowedChannels, 'in',  lostDests),
-      queryChannels(pool, from, to, allowedChannels, 'in'),
-      queryHourly(pool, from, to, allowedChannels, 'in'),
-      queryStats(pool, from, to, allowedChannels, 'out', lostDests),
-      queryChannels(pool, from, to, allowedChannels, 'out'),
-      queryQueues(pool, from, to, allowedChannels, configQueues, lostDests),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, null,  lostDests),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, null),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, null),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, 'in',  lostDests),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'in'),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in'),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'out'),
+      queryQueues(pool, from, to, inboundChannels, outboundChannels, configQueues, lostDests),
     ]);
     return {
       stats: totalStats, channels: totalChannels, hourly: totalHourly,
@@ -523,11 +541,17 @@ async function startServer() {
 
   app.get('/api/admin/channels', requireAdmin, (req, res) => {
     const aliases = getAliases();
-    const channels = (config.channels || []).map(ch => ({
+    const inbound  = (config.channels.inbound  || []).map(ch => ({
       channel: ch,
+      direction: 'inbound',
       alias: aliases[ch] || '',
     }));
-    res.json({ ok: true, channels });
+    const outbound = (config.channels.outbound || []).map(ch => ({
+      channel: ch,
+      direction: 'outbound',
+      alias: aliases[ch] || '',
+    }));
+    res.json({ ok: true, channels: [...inbound, ...outbound] });
   });
 
   app.put('/api/admin/channels/:channel', requireAdmin, (req, res) => {
@@ -535,7 +559,7 @@ async function startServer() {
     const { alias } = req.body || {};
     if (typeof alias !== 'string')
       return res.status(400).json({ ok: false, error: 'El campo alias es requerido' });
-    if (!(config.channels || []).includes(channel))
+    if (!config.channels.inbound.includes(channel) && !config.channels.outbound.includes(channel))
       return res.status(404).json({ ok: false, error: 'Canal no encontrado' });
 
     if (!config.channelAliases) config.channelAliases = {};

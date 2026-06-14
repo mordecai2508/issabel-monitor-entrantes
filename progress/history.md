@@ -4,6 +4,39 @@
 
 ---
 
+## Sesión 2026-06-13 — channels_inbound_outbound_split
+
+**Feature completada:** #20 `channels_inbound_outbound_split` — Separar canales/troncales entrantes y salientes para evitar contar llamadas extensión-extensión como salientes
+
+**Origen:** el usuario reportó que las llamadas entre extensiones se contaban como
+salientes, y un segundo problema (IVR contestando llamadas que no llegan a un
+agente) que quedó registrado como feature #21 (pending, sin spec todavía).
+
+**Resumen:**
+- Spec redactada (R1-R23, sin endpoints/tablas/deps nuevos) y aprobada por el humano.
+- `config.json`/`config.example.json`: migración automática de `channels` (array
+  plano) a `{ inbound: [...], outbound: [...] }`. Troncal saliente real confirmada
+  por el usuario: `SIP/SALIENTE_CALL`.
+- `passesFilter`/`queryStats`/`queryChannels`/`queryHourly` en `server.js` y
+  `cdrService.buildOutboundWhereClause`/`routes/outbound.js` (segunda ruta de
+  filtrado NOT-LIKE) ahora usan `channels.outbound` de forma explícita para
+  `direction='out'`, no por exclusión de `channels.inbound`.
+- `ChannelAliasManager.jsx` muestra a qué dirección (entrante/saliente) pertenece
+  cada canal.
+- Tests: 297/297 passing. Build frontend: ✅. Review: APROBADO (una observación
+  menor no bloqueante sobre el estado de edición en ChannelAliasManager, sin
+  impacto).
+- Commit: `feat(channels_inbound_outbound_split): ...` (pendiente de hash, ver git log)
+
+**Siguiente feature pendiente:** #21 `disposition_agent_answered_fix` — distinguir
+llamadas atendidas por un agente real (dstchannel=Agent/<n> o SIP/<extensión
+numérica>-xxxx) de llamadas solo contestadas por IVR/cola sin agente
+(disposition='ANSWERED' pero sin bridge a agente), reclasificándolas a 'Perdidas'
+de forma consistente en queryStats/queryChannels/queryHourly. Aún sin spec (sdd:true,
+status: pending) — siguiente paso: lanzar spec_author.
+
+---
+
 ## Sesión 2026-06-08 — user_management
 
 **Feature completada:** #8 `user_management` — Gestión completa de usuarios (CRUD + auditoría)

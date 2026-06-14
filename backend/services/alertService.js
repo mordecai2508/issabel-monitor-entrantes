@@ -360,7 +360,7 @@ module.exports = function createAlertService(pool, config, db, broadcast, pbxHea
    * @param {object} rule
    */
   async function evaluateTrunkDown(rule) {
-    const channels = config.channels || [];
+    const channels = (config.channels && config.channels.inbound) || [];
     if (channels.length === 0) return; // sin troncales configuradas, no se evalúa
 
     const now = new Date();

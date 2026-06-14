@@ -122,10 +122,10 @@ async function queryInboundExport(pool, filters, extractChannelFn) {
 /**
  * Build the WHERE clause and params array for outbound CDR queries.
  * @param {object} filters - { from, to, trunk, extension, dest, disposition }
- * @param {string[]} allowedChannels - configured inbound trunk channels
+ * @param {string[]} outboundChannels - configured outbound trunk channels (channels.outbound)
  * @returns {{ conditions: string[], params: any[] }}
  */
-function buildOutboundWhereClause(filters, allowedChannels) {
+function buildOutboundWhereClause(filters, outboundChannels) {
   const conditions = [];
   const params = [];
 
@@ -136,11 +136,13 @@ function buildOutboundWhereClause(filters, allowedChannels) {
 
   conditions.push("channel NOT LIKE 'Local/%'");
 
-  if (allowedChannels && allowedChannels.length > 0) {
-    for (const ch of allowedChannels) {
-      conditions.push("channel NOT LIKE CONCAT(?, '%')");
-      params.push(ch);
-    }
+  if (!outboundChannels || outboundChannels.length === 0) {
+    // Sin troncales salientes configuradas → ningún resultado
+    conditions.push('1 = 0');
+  } else {
+    const orParts = outboundChannels.map(() => "channel LIKE CONCAT(?, '%')");
+    conditions.push(`(${orParts.join(' OR ')})`);
+    for (const ch of outboundChannels) params.push(ch);
   }
 
   if (filters.trunk) {
@@ -187,16 +189,16 @@ function mapOutboundRow(row, extractChannelFn) {
  * @param {import('mysql2/promise').Pool} pool
  * @param {{ from: string, to: string, trunk?: string, extension?: string, dest?: string, disposition?: string }} filters
  * @param {{ page?: number, limit?: number }} pagination
- * @param {string[]} allowedChannels
+ * @param {string[]} outboundChannels
  * @param {Function} extractChannelFn
  * @returns {Promise<{ rows: object[], meta: { total: number, page: number, limit: number, totalPages: number } }>}
  */
-async function queryOutbound(pool, filters, pagination, allowedChannels, extractChannelFn) {
+async function queryOutbound(pool, filters, pagination, outboundChannels, extractChannelFn) {
   const page   = Number(pagination.page)  || 1;
   const limit  = Number(pagination.limit) || 100;
   const offset = (page - 1) * limit;
 
-  const { conditions, params } = buildOutboundWhereClause(filters, allowedChannels);
+  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countSql = `SELECT COUNT(*) AS total FROM cdr ${where}`;
@@ -226,12 +228,12 @@ async function queryOutbound(pool, filters, pagination, allowedChannels, extract
  *
  * @param {import('mysql2/promise').Pool} pool
  * @param {{ from: string, to: string, trunk?: string, extension?: string, dest?: string, disposition?: string }} filters
- * @param {string[]} allowedChannels
+ * @param {string[]} outboundChannels
  * @param {Function} extractChannelFn
  * @returns {Promise<object[]>}
  */
-async function queryOutboundExport(pool, filters, allowedChannels, extractChannelFn) {
-  const { conditions, params } = buildOutboundWhereClause(filters, allowedChannels);
+async function queryOutboundExport(pool, filters, outboundChannels, extractChannelFn) {
+  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `SELECT calldate, src, dst, dstchannel, duration, billsec, disposition

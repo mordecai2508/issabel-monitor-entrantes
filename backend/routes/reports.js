@@ -31,7 +31,7 @@ function isValidDate(s) {
  */
 module.exports = function reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk) {
   const router = express.Router();
-  const allowedChannels = config.channels || [];
+  const allowedChannels = (config.channels && config.channels.inbound) || [];
 
   function getAppName() {
     return config.app?.name || 'Call Monitor';
