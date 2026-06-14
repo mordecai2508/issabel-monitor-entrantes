@@ -5,11 +5,13 @@
  *
  * Uses Jest with a mocked MySQL pool (no Issabel DB required).
  *
- * NOTE (design.md §8): backend/server.js is a self-executing script that is
- * not safely importable in tests. This file defines a LOCAL COPY of
- * `extractChannel`, `passesFilter`, the `base` disposition object, and the
- * modified `queryStats` (R1-R19 reclassification algorithm) that must be kept
- * line-for-line/logic-identical to the implementation in server.js.
+ * NOTE (design.md §8, updated by feature #21 disposition_agent_answered_fix):
+ * backend/server.js is a self-executing script that is not safely importable
+ * in tests. This file defines a LOCAL COPY of `extractChannel`,
+ * `passesFilter` (post-#20), `resolveDisposition` (#21) and the modified
+ * `queryStats` (now delegating reclassification to `resolveDisposition`,
+ * R1-R19 of #17 + R1-R19 of #21) that must be kept line-for-line/logic-
+ * identical to the implementation in server.js.
  */
 
 // ── Local mirror of server.js helpers ──────────────────────────────────────
@@ -20,31 +22,57 @@ function extractChannel(raw) {
   return raw.replace(/-[0-9a-f]{6,}$/i, '').replace(/-\d+$/, '');
 }
 
-/** Mirrors passesFilter from server.js */
-function passesFilter(channel, allowedChannels, direction) {
-  if (!allowedChannels || allowedChannels.length === 0) return direction !== 'out';
+/** Mirrors passesFilter from server.js (post-#20) */
+function passesFilter(channel, inboundChannels, outboundChannels, direction) {
   const ch = extractChannel(channel);
-  // Canales internos (Local/) nunca son salientes externos
-  if (direction === 'out' && ch.startsWith('Local/')) return false;
-  const inList = allowedChannels.includes(ch);
-  if (direction === 'in')  return inList;
-  if (direction === 'out') return !inList;
+
+  if (direction === 'out') {
+    if (ch.startsWith('Local/')) return false;
+    return outboundChannels.includes(ch);
+  }
+
+  if (direction === 'in') {
+    return inboundChannels.includes(ch);
+  }
+
   return true;
 }
 
-/** Mirrors the modified queryStats from server.js (T1-T3) */
-async function queryStats(pool, from, to, allowedChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
+/** Mirrors AGENT_DSTCHANNEL_RE from server.js (#21) */
+const AGENT_DSTCHANNEL_RE = /^(Agent\/\d+|SIP\/\d+-)/;
+
+/** Mirrors resolveDisposition from server.js (#17 + #21) */
+function resolveDisposition(row, lostDests) {
+  const d = row.disposition.toUpperCase();
+  let targetKey = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d) ? d : null;
+  if (!targetKey) return null;
+
+  const isLostDst = lostDests.includes(row.dst);
+  if (isLostDst && targetKey !== 'NO ANSWER') {
+    targetKey = 'NO ANSWER';
+  }
+
+  if (targetKey === 'ANSWERED' && !AGENT_DSTCHANNEL_RE.test(row.dstchannel || '')) {
+    targetKey = 'NO ANSWER';
+  }
+
+  return targetKey;
+}
+
+/** Mirrors the modified queryStats from server.js (post-#20/#21) */
+async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
        dst,
+       dstchannel,
        disposition,
        COUNT(*)                    AS count,
        COALESCE(SUM(duration), 0)  AS total_duration,
        COALESCE(SUM(billsec), 0)   AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, dst, disposition`,
+     GROUP BY channel, dst, dstchannel, disposition`,
     [from, to]
   );
 
@@ -57,15 +85,9 @@ async function queryStats(pool, from, to, allowedChannels, direction = 'in', los
 
   let total = 0;
   for (const r of rows) {
-    if (!passesFilter(r.channel, allowedChannels, direction)) continue;
-    const d = r.disposition.toUpperCase();
-    const isLostDst = lostDests.includes(r.dst);
+    if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
 
-    let targetKey = base[d] ? d : null;
-    if (isLostDst && targetKey && targetKey !== 'NO ANSWER') {
-      targetKey = 'NO ANSWER';
-    }
-
+    const targetKey = resolveDisposition(r, lostDests);
     if (targetKey) {
       base[targetKey].count          += Number(r.count);
       base[targetKey].total_duration += Number(r.total_duration);
@@ -91,11 +113,12 @@ function mockPool(rows) {
   return { query: jest.fn().mockResolvedValue([rows]) };
 }
 
-/** Sample CDR aggregate row, as returned by the GROUP BY channel, dst, disposition query */
+/** Sample CDR aggregate row, as returned by the GROUP BY channel, dst, dstchannel, disposition query */
 function makeRow(overrides = {}) {
   return {
     channel:        'SIP/trunk-1',
     dst:            '1234',
+    dstchannel:     'Agent/01',
     disposition:    'ANSWERED',
     count:          1,
     total_duration: 30,
@@ -107,6 +130,12 @@ function makeRow(overrides = {}) {
 const FROM = '2026-06-10 00:00:00';
 const TO   = '2026-06-11 00:00:00';
 
+// makeRow's channel ('SIP/trunk-1') normalizes to 'SIP/trunk' (extractChannel
+// strips the trailing '-1'); registrarlo como inbound para que passesFilter
+// (post-#20) lo incluya con direction='in'.
+const INBOUND  = ['SIP/trunk'];
+const OUTBOUND = [];
+
 // ── Tests ────────────────────────────────────────────────────────────────
 
 describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
@@ -115,7 +144,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'ANSWERED', dst: 'hang', count: 1, total_duration: 30, total_billsec: 25 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions.ANSWERED.count).toBe(0);
     expect(dispositions['NO ANSWER'].count).toBe(1);
@@ -128,7 +157,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'BUSY', dst: 'hang', count: 1, total_duration: 0, total_billsec: 0 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions.BUSY.count).toBe(0);
     expect(dispositions['NO ANSWER'].count).toBe(1);
@@ -139,7 +168,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'FAILED', dst: 'hangup', count: 1, total_duration: 0, total_billsec: 0 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions.FAILED.count).toBe(0);
     expect(dispositions['NO ANSWER'].count).toBe(1);
@@ -150,7 +179,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'NO ANSWER', dst: 's', count: 1, total_duration: 0, total_billsec: 0 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions['NO ANSWER'].count).toBe(1);
     expect(total).toBe(1);
@@ -160,7 +189,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'NO ANSWER', dst: '1234', count: 1, total_duration: 0, total_billsec: 0 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions['NO ANSWER'].count).toBe(1);
     expect(dispositions.ANSWERED.count).toBe(0);
@@ -177,7 +206,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(dispositions.ANSWERED.count).toBe(1);
     expect(dispositions.BUSY.count).toBe(1);
@@ -196,7 +225,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     const sum = dispositions.ANSWERED.count + dispositions['NO ANSWER'].count
       + dispositions.BUSY.count + dispositions.FAILED.count;
@@ -213,7 +242,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     const directSum = rows.reduce((acc, r) => acc + Number(r.count), 0);
     expect(total).toBe(directSum);
@@ -226,7 +255,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, []);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', []);
 
     expect(dispositions.ANSWERED.count).toBe(1);
     expect(dispositions['NO ANSWER'].count).toBe(2);
@@ -238,7 +267,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const pool = mockPool(rows);
 
     // Invocado sin el sexto argumento → debe aplicar el default
-    const { dispositions } = await queryStats(pool, FROM, TO, null, null);
+    const { dispositions } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in');
 
     expect(dispositions.BUSY.count).toBe(0);
     expect(dispositions['NO ANSWER'].count).toBe(1);
@@ -248,7 +277,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'ANSWERED', dst: '9999', count: 1, total_duration: 10, total_billsec: 8 })];
     const pool = mockPool(rows);
 
-    const { dispositions } = await queryStats(pool, FROM, TO, null, null, ['9999']);
+    const { dispositions } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['9999']);
 
     expect(dispositions.ANSWERED.count).toBe(0);
     expect(dispositions['NO ANSWER'].count).toBe(1);
@@ -258,7 +287,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     const rows = [makeRow({ disposition: 'CONGESTION', dst: 'hang', count: 1, total_duration: 0, total_billsec: 0 })];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     for (const key of Object.keys(dispositions)) {
       expect(dispositions[key].count).toBe(0);
@@ -277,7 +306,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { dispositions } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(Object.values(dispositions).every(d => d.count >= 0)).toBe(true);
   });
@@ -285,7 +314,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
   it('R17 - sin filas (sin llamadas), todos los contadores y total son 0', async () => {
     const pool = mockPool([]);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(total).toBe(0);
     for (const key of Object.keys(dispositions)) {
@@ -305,7 +334,7 @@ describe('queryStats — reclasificación de Perdidas (feature #17)', () => {
     ];
     const pool = mockPool(rows);
 
-    const { dispositions, total } = await queryStats(pool, FROM, TO, null, null, ['s', 'hang', 'hangup']);
+    const { dispositions, total } = await queryStats(pool, FROM, TO, INBOUND, OUTBOUND, 'in', ['s', 'hang', 'hangup']);
 
     expect(total).toBe(4);
     expect(dispositions.ANSWERED.count).toBe(3);

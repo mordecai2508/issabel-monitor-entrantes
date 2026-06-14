@@ -98,18 +98,45 @@ function passesFilter(channel, inboundChannels, outboundChannels, direction) {
   return true; // direction = null → todos
 }
 
+// ── Reclasificación de disposición (#17 lostDestinations + #21 agente) ──
+// Evaluado sobre dstchannel "crudo" (sin extractChannel, ver R19).
+const AGENT_DSTCHANNEL_RE = /^(Agent\/\d+|SIP\/\d+-)/;
+
+// Devuelve la clave de disposición efectiva ('ANSWERED' | 'NO ANSWER' |
+// 'BUSY' | 'FAILED' | null) tras aplicar las reclasificaciones de #17
+// (dst en lostDests) y #21 (ANSWERED sin dstchannel de agente).
+function resolveDisposition(row, lostDests) {
+  const d = row.disposition.toUpperCase();
+  let targetKey = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d) ? d : null;
+  if (!targetKey) return null;
+
+  // #17: dst en lostDestinations reclasifica cualquier disposición hacia 'NO ANSWER'
+  const isLostDst = lostDests.includes(row.dst);
+  if (isLostDst && targetKey !== 'NO ANSWER') {
+    targetKey = 'NO ANSWER';
+  }
+
+  // #21: ANSWERED sin dstchannel de agente reclasifica hacia 'NO ANSWER'
+  if (targetKey === 'ANSWERED' && !AGENT_DSTCHANNEL_RE.test(row.dstchannel || '')) {
+    targetKey = 'NO ANSWER';
+  }
+
+  return targetKey;
+}
+
 async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
        dst,
+       dstchannel,
        disposition,
        COUNT(*)                    AS count,
        COALESCE(SUM(duration), 0)  AS total_duration,
        COALESCE(SUM(billsec), 0)   AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, dst, disposition`,
+     GROUP BY channel, dst, dstchannel, disposition`,
     [from, to]
   );
 
@@ -123,14 +150,8 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
   let total = 0;
   for (const r of rows) {
     if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
-    const d = r.disposition.toUpperCase();
-    const isLostDst = lostDests.includes(r.dst);
 
-    let targetKey = base[d] ? d : null;
-    if (isLostDst && targetKey && targetKey !== 'NO ANSWER') {
-      targetKey = 'NO ANSWER';
-    }
-
+    const targetKey = resolveDisposition(r, lostDests);
     if (targetKey) {
       base[targetKey].count          += Number(r.count);
       base[targetKey].total_duration += Number(r.total_duration);
@@ -149,16 +170,18 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
   return { dispositions: base, total };
 }
 
-async function queryChannels(pool, from, to, inboundChannels, outboundChannels, direction = 'in') {
+async function queryChannels(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
+       dst,
+       dstchannel,
        disposition,
        COUNT(*)                    AS count,
        COALESCE(SUM(billsec), 0)  AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, disposition`,
+     GROUP BY channel, dst, dstchannel, disposition`,
     [from, to]
   );
 
@@ -169,27 +192,30 @@ async function queryChannels(pool, from, to, inboundChannels, outboundChannels, 
     if (!map[ch]) {
       map[ch] = { channel: ch, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0, total_billsec: 0 };
     }
-    const d = r.disposition.toUpperCase();
-    if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d)) {
-      map[ch][d] += Number(r.count);
+
+    const targetKey = resolveDisposition(r, lostDests);
+    if (targetKey) {
+      map[ch][targetKey] += Number(r.count);
     }
-    map[ch].total        += Number(r.count);
+    map[ch].total         += Number(r.count);
     map[ch].total_billsec += Number(r.total_billsec);
   }
 
   return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
-async function queryHourly(pool, from, to, inboundChannels, outboundChannels, direction = 'in') {
+async function queryHourly(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
   const [rows] = await pool.query(
     `SELECT
        channel,
+       dst,
+       dstchannel,
        HOUR(calldate) AS hour,
        disposition,
        COUNT(*)       AS count
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, HOUR(calldate), disposition
+     GROUP BY channel, dst, dstchannel, HOUR(calldate), disposition
      ORDER BY hour`,
     [from, to]
   );
@@ -202,9 +228,10 @@ async function queryHourly(pool, from, to, inboundChannels, outboundChannels, di
   for (const r of rows) {
     if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
     const h = Number(r.hour);
-    const d = r.disposition.toUpperCase();
-    if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d)) {
-      hours[h][d] += Number(r.count);
+
+    const targetKey = resolveDisposition(r, lostDests);
+    if (targetKey) {
+      hours[h][targetKey] += Number(r.count);
     }
     hours[h].total += Number(r.count);
   }
@@ -424,13 +451,13 @@ async function startServer() {
       queues,
     ] = await Promise.all([
       queryStats(pool, from, to, inboundChannels, outboundChannels, null,  lostDests),
-      queryChannels(pool, from, to, inboundChannels, outboundChannels, null),
-      queryHourly(pool, from, to, inboundChannels, outboundChannels, null),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
       queryStats(pool, from, to, inboundChannels, outboundChannels, 'in',  lostDests),
-      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'in'),
-      queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in'),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
       queryStats(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
-      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'out'),
+      queryChannels(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
       queryQueues(pool, from, to, inboundChannels, outboundChannels, configQueues, lostDests),
     ]);
     return {

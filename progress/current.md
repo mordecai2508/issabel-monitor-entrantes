@@ -6,26 +6,21 @@
 
 ## Estado
 
-Sin feature en progreso.
+Sin feature en progreso. #21 aprobada, pendiente commit.
 
 ## Feature en progreso
 
-_Ninguna._ Última feature completada: #20 `channels_inbound_outbound_split`
-(done, pendiente commit de git en esta sesión).
+Ninguna en `in_progress`. Última feature completada: #21
+`disposition_agent_answered_fix` (done, pendiente commit en esta sesión).
 
 ## Última acción / Próximo paso
 
-#20 aprobada por el reviewer (297/297 tests, build ✅). Pendiente: commit
-`feat(channels_inbound_outbound_split): ...`, luego marcar `done` (ya hecho
-en feature_list.json) e iniciar #21.
+#21 implementada y aprobada por el reviewer (318/318 tests, build ✅,
+no-regresión sobre #20 OK). `feature_list.json` #21 ya marcada `done`.
 
-Siguiente feature pendiente: **#21 `disposition_agent_answered_fix`**
-(sdd:true, status: pending, sin spec todavía) — distinguir llamadas atendidas
-por un agente real (dstchannel=Agent/<n> o SIP/<extensión numérica>-xxxx) de
-llamadas solo contestadas por IVR/cola sin agente (disposition='ANSWERED' pero
-sin bridge a agente), reclasificándolas a 'Perdidas' de forma consistente en
-queryStats/queryChannels/queryHourly. Próximo paso: lanzar `spec_author` para
-specs/disposition_agent_answered_fix/.
+Próximo paso: commit `feat(disposition_agent_answered_fix): ...`. No quedan
+features `pending`/`spec_ready`/`in_progress` en `feature_list.json` (#1-#21
+todas `done`). A la espera de que el usuario añada nuevas features al backlog.
 
 Pendiente fuera de código (acción manual del usuario en producción): añadir
 la clase `reporting` a `read` en `manager.conf` del Issabel

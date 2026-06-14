@@ -4,6 +4,31 @@
 
 ---
 
+## Sesión 2026-06-13 — disposition_agent_answered_fix
+
+**Feature completada:** #21 `disposition_agent_answered_fix` — Distinguir llamadas atendidas por un agente de llamadas solo contestadas por IVR/cola sin agente
+
+**Resumen:**
+- Spec redactada (R1-R21, sin endpoints/tablas/deps nuevos) y aprobada por el humano.
+- Helper compartido `resolveDisposition(row, lostDests)` con `AGENT_DSTCHANNEL_RE`
+  (`/^Agent\/\d+/` o `/^SIP\/\d+-/`): disposition='ANSWERED' con dstchannel que no
+  matchea ninguno de los dos patrones se reclasifica a 'Perdidas'/NO ANSWER, sin
+  doble conteo con la reclasificación existente por `config.lostDestinations` (#17).
+- `queryStats` (añade `dstchannel`), `queryChannels` y `queryHourly` (añaden
+  `dst`+`dstchannel`+`lostDests`) ahora aplican el mismo criterio de forma
+  consistente, cerrando la limitación conocida documentada en #17. `queryQueues`
+  queda intencionalmente sin cambios (limitación conocida documentada en el spec).
+- BUSY/FAILED no se ven afectados; Total = Contestadas + Perdidas + Ocupado +
+  Fallidas sigue cuadrando.
+- Tests: 318/318 passing. Build frontend: ✅. Review: APROBADO.
+- Commit: `feat(disposition_agent_answered_fix): ...` (pendiente de hash, ver git log)
+
+**Siguiente feature pendiente:** ninguna. #1-#21 todas `done` en
+`feature_list.json`. A la espera de que el usuario añada nuevas features al
+backlog.
+
+---
+
 ## Sesión 2026-06-13 — channels_inbound_outbound_split
 
 **Feature completada:** #20 `channels_inbound_outbound_split` — Separar canales/troncales entrantes y salientes para evitar contar llamadas extensión-extensión como salientes

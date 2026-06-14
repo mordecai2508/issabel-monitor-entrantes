@@ -395,7 +395,7 @@
         "Tests: dst=cola con dstchannel vacío y disposition=ANSWERED (reclasifica a Perdidas), dstchannel='Agent/03' (cuenta como Contestada), dst en lostDestinations sin doble conteo, consistencia entre queryStats/queryChannels/queryHourly tras la reclasificación"
       ],
       "sdd": true,
-      "status": "pending"
+      "status": "done"
     }
   ]
 }
