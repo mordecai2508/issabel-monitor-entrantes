@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   Phone, PhoneOff, PhoneMissed, AlertTriangle, PhoneCall,
   PhoneIncoming, PhoneOutgoing,
-  Wifi, WifiOff, RefreshCw, Users, UserCheck,
+  Wifi, WifiOff, RefreshCw, Users,
 } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { DispositionChart } from './DispositionChart';
@@ -74,38 +74,25 @@ function QueueCard({ queue }) {
   );
 }
 
-const UNANSWERED_REASONS = [
-  { key: 'no_answer',      label: 'Sin respuesta' },
-  { key: 'ivr_hangup',     label: 'Colgó en IVR' },
-  { key: 'queue_no_agent', label: 'Cola sin agente' },
-];
-
-const REASON_COLOR_CLASS = {
-  no_answer:      'text-amber-400',
-  ivr_hangup:     'text-slate-400',
-  queue_no_agent: 'text-red-400',
-};
-
-function UnansweredBreakdownCard({ breakdown, noAnswerTotal }) {
-  const b = breakdown ?? { no_answer: 0, ivr_hangup: 0, queue_no_agent: 0 }; // R19
+function ExtensionsStatusCard({ data }) {
+  const { total, active, available } = data;
 
   return (
-    <div className="card flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-200">Detalle de Perdidas</span>
-        <span className="text-2xl font-bold text-slate-100">{noAnswerTotal}</span>
+    <div
+      className={`card flex items-center justify-between ${available ? '' : 'opacity-50'}`}
+      title={available ? undefined : 'Estado de extensiones no disponible'}
+    >
+      <div>
+        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Extensiones</p>
+        <p className="text-3xl font-bold text-slate-100">
+          <span className="text-emerald-400">{active}</span>
+          <span className="text-slate-500"> / </span>
+          <span>{total}</span>
+        </p>
+        <p className="text-xs text-slate-500 mt-1">activas / total</p>
       </div>
-      <div className="space-y-2">
-        {UNANSWERED_REASONS.map(({ key, label }) => {
-          const count = b[key] ?? 0;
-          const pct = noAnswerTotal > 0 ? Math.round((count / noAnswerTotal) * 1000) / 10 : 0; // R17
-          return (
-            <div key={key} className="flex items-center justify-between text-xs text-slate-500">
-              <span>{label}</span>
-              <span className={`font-medium ${REASON_COLOR_CLASS[key]}`}>{count} ({pct}%)</span>
-            </div>
-          );
-        })}
+      <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
+        <Users className="w-5 h-5 text-slate-400" />
       </div>
     </div>
   );
@@ -158,8 +145,6 @@ export default function Dashboard() {
   const busyPct     = disp?.BUSY?.pct          ?? 0;
   const failedPct   = disp?.FAILED?.pct        ?? 0;
 
-  const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown; // R19: puede ser undefined
-
   const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
   const outboundTotal = data?.outbound?.stats?.total ?? 0;
   const inboundPct  = total > 0 ? Math.round((inboundTotal  / total) * 1000) / 10 : 0;
@@ -203,22 +188,13 @@ export default function Dashboard() {
             <StatCard label="Total llamadas" value={total}     icon={Phone}      color="blue" />
             <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}  color="green"
               sub="del total" pct={answeredPct} />
-            <StatCard label="Perdidas"       value={noAnswer}  icon={PhoneMissed} color="red"
+            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed} color="red"
               sub="no efectivas, del total" pct={lostPct} />
           </div>
 
-          {/* Desglose de 'Perdidas' por motivo (#22) */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4">
-            <UnansweredBreakdownCard breakdown={noAnswerBreakdown} noAnswerTotal={noAnswer} />
-          </div>
-
-          {/* Estado de extensiones (AMI) */}
-          <div
-            className={`grid grid-cols-2 gap-4 ${extensionsData.available ? '' : 'opacity-50'}`}
-            title={extensionsData.available ? undefined : 'Estado de extensiones no disponible'}
-          >
-            <StatCard label="Extensiones" value={extensionsData.total}  icon={Users}     color="slate" />
-            <StatCard label="Activas"     value={extensionsData.active} icon={UserCheck} color="green" />
+          {/* Estado de extensiones (AMI) — tarjeta combinada (#23) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ExtensionsStatusCard data={extensionsData} />
           </div>
 
           {/* Ocupado + Fallidas + resumen de duración/canales */}

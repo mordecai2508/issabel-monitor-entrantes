@@ -6,20 +6,22 @@
 
 ## Estado
 
-Sin feature en progreso. #22 aprobada, pendiente commit.
+Sin feature en progreso. #23 aprobada, pendiente commit.
 
 ## Feature en progreso
 
-Ninguna en `in_progress`. Última feature completada: #22
-`dashboard_unanswered_breakdown` (done, pendiente commit en esta sesión).
+Ninguna en `in_progress`. Última feature completada: #23
+`dashboard_cards_restructure` (done, pendiente commit en esta sesión).
 
 ## Última acción / Próximo paso
 
-#22 implementada y aprobada por el reviewer (331/331 tests, build ✅,
-no-regresión sobre #17/#20/#21 OK). `feature_list.json` #22 ya marcada `done`.
+#23 implementada y aprobada por el reviewer (342/342 tests, build ✅,
+invariante total=ANSWERED+NO ANSWER+BUSY+FAILED por cola verificado,
+nota sobre comentario desactualizado en disposition_agent_answered_fix.test.js
+marcada no bloqueante). `feature_list.json` #23 ya marcada `done`.
 
-Próximo paso: commit `feat(dashboard_unanswered_breakdown): ...`. No quedan
-features `pending`/`spec_ready`/`in_progress` en `feature_list.json` (#1-#22
+Próximo paso: commit `feat(dashboard_cards_restructure): ...`. No quedan
+features `pending`/`spec_ready`/`in_progress` en `feature_list.json` (#1-#23
 todas `done`). A la espera de que el usuario añada nuevas features al backlog.
 
 Pendiente fuera de código (acción manual del usuario en producción): añadir

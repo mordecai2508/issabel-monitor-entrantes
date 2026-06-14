@@ -416,6 +416,27 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 23,
+      "name": "dashboard_cards_restructure",
+      "title": "Reestructurar tarjetas del dashboard: 'No Contestadas' simple, colas con nueva lógica de no-contestadas, y tarjeta única de extensiones",
+      "description": "Tres ajustes relacionados a las tarjetas del Dashboard principal: (1) la StatCard actual 'Perdidas' se renombra a 'No Contestadas' manteniendo el mismo formato simple (label + total + % del total) que 'Contestadas', y se elimina la tarjeta de desglose 'Detalle de Perdidas' (UnansweredBreakdownCard, #22) que mostraba las 3 subcategorías; (2) las QueueCard (tarjetas de colas) deben mostrar 'No contest.' aplicando la misma lógica de reclasificación de resolveDisposition (#21/#17) usada en queryStats, en lugar del conteo crudo de disposition='NO ANSWER' por cola — esto requiere modificar queryQueues en backend/server.js para reclasificar cada registro antes de agregar por cola; (3) las dos StatCard separadas 'Extensiones' (total) y 'Activas' (registradas) se combinan en una sola tarjeta que muestra ambos valores (total de extensiones y cuántas están activas).",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "La StatCard actualmente etiquetada 'Perdidas' se renombra a 'No Contestadas', conservando el mismo formato que 'Contestadas' (label, valor total, sub-texto y % del total)",
+        "Se elimina del Dashboard la tarjeta 'Detalle de Perdidas' (UnansweredBreakdownCard) y su sección; el campo breakdown puede seguir existiendo en el payload de backend (no romper /api/calls/today ni SSE) pero no se renderiza en el Dashboard",
+        "queryQueues aplica resolveDisposition (mismo criterio que queryStats/#21: dst en config.lostDestinations y ANSWERED sin dstchannel de agente se reclasifican como NO ANSWER) a cada registro antes de agregar por cola, de modo que queue['NO ANSWER'] refleje la reclasificación",
+        "QueueCard sigue mostrando 'No contest.: N' con el mismo formato visual, pero N ahora refleja el valor reclasificado por cola",
+        "Para cada cola (queue.queue !== '__lost__'), total = ANSWERED + NO ANSWER(reclasificado) + BUSY (+ FAILED si aplica) sigue cuadrando exactamente con el total de esa cola",
+        "Las StatCard 'Extensiones' y 'Activas' se combinan en una sola tarjeta que muestra el total de extensiones configuradas y cuántas están activas/registradas (p.ej. '8 / 12 activas'), preservando el comportamiento de degradación cuando extensionsData.available=false (#18/#19)",
+        "/api/calls/today, /api/calls/range y los eventos SSE init/update siguen funcionando correctamente con queryQueues reclasificado",
+        "Tests: renombrado y eliminación de tarjetas en el Dashboard (frontend), queryQueues con reclasificación (caso ANSWERED sin agente y caso dst en lostDestinations dentro de una cola configurada), tarjeta única de extensiones con datos disponibles y con available=false"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

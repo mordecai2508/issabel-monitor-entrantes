@@ -275,10 +275,10 @@ async function queryQueues(pool, from, to, inboundChannels, outboundChannels, qu
   if (!queues || queues.length === 0) return [];
 
   const [rows] = await pool.query(
-    `SELECT channel, dst, disposition, COUNT(*) AS count
+    `SELECT channel, dst, dstchannel, disposition, COUNT(*) AS count
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, dst, disposition`,
+     GROUP BY channel, dst, dstchannel, disposition`,
     [from, to]
   );
 
@@ -292,11 +292,13 @@ async function queryQueues(pool, from, to, inboundChannels, outboundChannels, qu
   for (const r of rows) {
     if (!passesFilter(r.channel, inboundChannels, outboundChannels, 'in')) continue;
     if (!validDsts.has(r.dst)) continue;
-    const key   = queues.includes(r.dst) ? r.dst : '__lost__';
-    const d     = r.disposition.toUpperCase();
+    const key = queues.includes(r.dst) ? r.dst : '__lost__';
+
+    const targetKey = resolveDisposition(r, lostDests);
+    if (targetKey) {
+      result[key][targetKey] += Number(r.count);
+    }
     result[key].total += Number(r.count);
-    if (['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d))
-      result[key][d] += Number(r.count);
   }
 
   return Object.values(result);

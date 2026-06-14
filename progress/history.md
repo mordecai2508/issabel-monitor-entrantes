@@ -4,6 +4,41 @@
 
 ---
 
+## Sesión 2026-06-13 — dashboard_cards_restructure
+
+**Feature completada:** #23 `dashboard_cards_restructure` — Reestructurar tarjetas del dashboard: 'No Contestadas' simple, colas con nueva lógica de no-contestadas, y tarjeta única de extensiones
+
+**Resumen:**
+- Spec redactada (R1-R25, T1-T12, sin endpoints/tablas/deps nuevos) y aprobada por el humano.
+- StatCard 'Perdidas' renombrada a 'No Contestadas' (mismo formato que
+  'Contestadas': label + total + sub + %).
+- Eliminado por completo `UnansweredBreakdownCard` (#22) y sus constantes
+  (`UNANSWERED_REASONS`, `REASON_COLOR_CLASS`, `noAnswerBreakdown`) y su
+  sección de render. El backend conserva `dispositions['NO ANSWER'].breakdown`
+  sin cambios (no se rompe el payload).
+- `queryQueues` (backend/server.js) añade `dstchannel` al SELECT/GROUP BY y
+  reemplaza el switch crudo por `disposition` por `resolveDisposition(r,
+  lostDests)` (mismo patrón que #21 en queryChannels/queryHourly), de modo
+  que `queue['NO ANSWER']` refleje ANSWERED-sin-agente y dst en
+  lostDestinations también a nivel de cola. Firma sin cambios; sigue con
+  parámetros preparados (`?`).
+- Nuevo componente `ExtensionsStatusCard` combina las StatCard 'Extensiones'
+  y 'Activas' en una sola tarjeta (activas/total), preservando degradación
+  cuando `extensionsData.available=false`.
+- Tests: 342/342 passing (11 nuevos en
+  `backend/tests/dashboard_cards_restructure.test.js`, cubren R8-R11 y
+  R19-R22, incluyendo el invariante total=ANSWERED+NO ANSWER+BUSY+FAILED por
+  cola y `__lost__`). Build frontend: ✅. Review: APROBADO (nota sobre
+  comentario desactualizado en disposition_agent_answered_fix.test.js
+  documentada como no bloqueante).
+- Commit: `feat(dashboard_cards_restructure): ...` (pendiente de hash, ver git log)
+
+**Siguiente feature pendiente:** ninguna. #1-#23 todas `done` en
+`feature_list.json`. A la espera de que el usuario añada nuevas features al
+backlog.
+
+---
+
 ## Sesión 2026-06-13 — dashboard_unanswered_breakdown
 
 **Feature completada:** #22 `dashboard_unanswered_breakdown` — Desglose por motivo de las llamadas no contestadas ('Perdidas') en el dashboard
