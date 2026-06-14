@@ -437,6 +437,27 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 24,
+      "name": "dashboard_perdidas_no_contestadas_split",
+      "title": "Separar 'Perdidas' (colgó en IVR) de 'No Contestadas' (sin respuesta / cola sin agente) en el dashboard",
+      "description": "La feature #23 renombró la StatCard 'Perdidas' a 'No Contestadas', mostrando el total reclasificado de dispositions['NO ANSWER'].count (que agrupa las 3 subcategorías de #22: no_answer, ivr_hangup, queue_no_agent). Esta feature separa ese total en dos StatCard, reutilizando el campo dispositions['NO ANSWER'].breakdown ya calculado por queryStats (#22), sin requerir cambios de backend: (1) 'Perdidas' = breakdown.ivr_hangup (llamadas cuyo dst está en config.lostDestinations, p.ej. 's','hang','hangup' — el cliente colgó en el IVR/menú); (2) 'No Contestadas' = breakdown.no_answer + breakdown.queue_no_agent (llamadas con disposition original 'NO ANSWER' sin dst en lostDestinations, más llamadas 'ANSWERED' reclasificadas por #21 al no tener un agente real en dstchannel). La suma de ambas tarjetas debe ser igual a dispositions['NO ANSWER'].count, que es exactamente el mismo total que ya se usa (vía resolveDisposition/#21) para la categoría 'no contestadas' en los gráficos 'Distribución de llamadas' (DispositionChart) y 'Llamadas por hora (hoy)' (HourlyChart), preservando así la consistencia entre las StatCard y los gráficos.",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "La StatCard 'Perdidas' muestra dispositions['NO ANSWER'].breakdown.ivr_hangup (llamadas con dst en config.lostDestinations), con el mismo formato (label + valor + sub-texto + % del total) que 'Contestadas'",
+        "La StatCard 'No Contestadas' muestra dispositions['NO ANSWER'].breakdown.no_answer + dispositions['NO ANSWER'].breakdown.queue_no_agent, con el mismo formato",
+        "'Perdidas' + 'No Contestadas' (valores mostrados) = dispositions['NO ANSWER'].count, exactamente el mismo total que ya refleja la categoría 'no contestadas' (vía resolveDisposition, #21) en DispositionChart y HourlyChart",
+        "Total = Contestadas + Perdidas + No Contestadas + Ocupado + Fallidas sigue cuadrando exactamente (invariante de #16/#17/#21)",
+        "Los porcentajes (pct) de 'Perdidas' y 'No Contestadas' se calculan cada uno sobre el total general de llamadas",
+        "No se requieren cambios en queryStats/resolveDisposition/classifyUnansweredReason ni en el payload de /api/calls/today, /api/calls/range o SSE (breakdown ya existe desde #22); si el spec_author identifica que sí hace falta algún ajuste backend, debe documentarlo y justificarlo",
+        "Si dispositions['NO ANSWER'].breakdown no está presente (caso degradado/legacy), ambas tarjetas se degradan a 0 sin romper el render (igual que el manejo de R19 en #22)",
+        "Tests: cálculo de 'Perdidas' (ivr_hangup) y 'No Contestadas' (no_answer+queue_no_agent) con datos de ejemplo, suma de ambas = dispositions['NO ANSWER'].count, reconciliación con Total, caso breakdown ausente/0"
+      ],
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

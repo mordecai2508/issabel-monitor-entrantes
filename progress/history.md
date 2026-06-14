@@ -4,6 +4,38 @@
 
 ---
 
+## Sesión 2026-06-13 — dashboard_perdidas_no_contestadas_split
+
+**Feature completada:** #24 `dashboard_perdidas_no_contestadas_split` — Separar 'Perdidas' (colgó en IVR) de 'No Contestadas' (sin respuesta / cola sin agente) en el dashboard
+
+**Resumen:**
+- Spec redactada (R1-R16, T1-T7, 0 cambios de backend) y aprobada por el humano.
+- La StatCard única 'No Contestadas' (#23) se separa en dos: 'Perdidas' =
+  `dispositions['NO ANSWER'].breakdown.ivr_hangup`, 'No Contestadas' =
+  `breakdown.no_answer + breakdown.queue_no_agent`, cada una con su propio
+  `pct` calculado sobre `stats.total` (no sobre el `pct` agregado de NO
+  ANSWER). Grid de StatCards `sm:grid-cols-3` → `sm:grid-cols-2
+  lg:grid-cols-4` (Total, Contestadas, Perdidas, No Contestadas).
+- Sin cambios en `backend/server.js` (breakdown ya existía desde #22,
+  confirmado por `git diff` vacío).
+- 7 tests nuevos en `frontend/src/components/Dashboard.test.jsx` cubren
+  R1,R2,R3,R6,R8,R10,R11. Backend: 342/342 (sin tocar). Build frontend: ✅.
+  Review: APROBADO.
+- Invariantes verificados: Perdidas+NoContestadas = NO ANSWER.count;
+  Total = Contestadas+Perdidas+NoContestadas+Ocupado+Fallidas.
+- Deuda técnica documentada (no bloqueante): 2 tests preexistentes de #23
+  fallan en `Dashboard.test.jsx` (`getByText('Activas')`, bloque R14-R17 de
+  extensiones AMI) porque `ExtensionsStatusCard` ya no renderiza un label
+  "Activas" independiente — confirmado preexistente de #23 (commit
+  `311bbd9`), no introducido por #24.
+- Commit: `feat(dashboard_perdidas_no_contestadas_split): ...` (pendiente de hash, ver git log)
+
+**Siguiente feature pendiente:** ninguna. #1-#24 todas `done` en
+`feature_list.json`. A la espera de que el usuario añada nuevas features al
+backlog.
+
+---
+
 ## Sesión 2026-06-13 — dashboard_cards_restructure
 
 **Feature completada:** #23 `dashboard_cards_restructure` — Reestructurar tarjetas del dashboard: 'No Contestadas' simple, colas con nueva lógica de no-contestadas, y tarjeta única de extensiones

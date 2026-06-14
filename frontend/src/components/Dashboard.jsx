@@ -136,14 +136,30 @@ export default function Dashboard() {
   const channelAliases = data?.channelAliases ?? {};
 
   const answered = disp?.ANSWERED?.count   ?? 0;
-  const noAnswer = disp?.['NO ANSWER']?.count ?? 0;
   const busy     = disp?.BUSY?.count       ?? 0;
   const failed   = disp?.FAILED?.count     ?? 0;
 
   const answeredPct = disp?.ANSWERED?.pct     ?? 0;
-  const lostPct     = disp?.['NO ANSWER']?.pct ?? 0;
   const busyPct     = disp?.BUSY?.pct          ?? 0;
   const failedPct   = disp?.FAILED?.pct        ?? 0;
+
+  // R10/R11: breakdown puede ser undefined (payload legacy) o tener claves
+  // faltantes — default por clave individual, no all-or-nothing.
+  const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown ?? {};
+
+  // R1: "Perdidas" = colgó en IVR/menú (dst en config.lostDestinations).
+  const lost = noAnswerBreakdown.ivr_hangup ?? 0;
+
+  // R2: "No Contestadas" = sin respuesta + cola sin agente real.
+  const noAnswer =
+    (noAnswerBreakdown.no_answer ?? 0) + (noAnswerBreakdown.queue_no_agent ?? 0);
+
+  // R6: pct de cada tarjeta sobre el total general, no entre sí ni sobre
+  // dispositions['NO ANSWER'].count.
+  const lostPct =
+    total > 0 ? Math.round((lost / total) * 1000) / 10 : 0;
+  const noAnswerPct =
+    total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
 
   const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
   const outboundTotal = data?.outbound?.stats?.total ?? 0;
@@ -184,12 +200,14 @@ export default function Dashboard() {
       {data && (
         <>
           {/* Stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Total llamadas" value={total}     icon={Phone}      color="blue" />
             <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}  color="green"
               sub="del total" pct={answeredPct} />
-            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed} color="red"
-              sub="no efectivas, del total" pct={lostPct} />
+            <StatCard label="Perdidas"       value={lost}      icon={PhoneMissed} color="red"
+              sub="colgó en IVR, del total" pct={lostPct} />
+            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed} color="amber"
+              sub="sin respuesta, del total" pct={noAnswerPct} />
           </div>
 
           {/* Estado de extensiones (AMI) — tarjeta combinada (#23) */}
