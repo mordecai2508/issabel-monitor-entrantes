@@ -1,100 +1,89 @@
 'use strict';
 
+const AGENT_DSTCHANNEL_MYSQL = '^(Agent/[0-9]+|SIP/[0-9]+-)';
+
 function calcVariation(v1, v2) {
   if (v1 === 0) return null;
   return Math.round(((v2 - v1) / v1) * 100 * 10) / 10;
 }
 
-async function queryHistorical(pool, period, from, to) {
+/**
+ * Build CASE expressions that mirror resolveDisposition logic from server.js.
+ * Returns { answeredExpr, noAnswerExpr, extraParams } for use in SQL queries.
+ * When lostDests is empty, falls back to simple SUM(disposition = ...) for
+ * backward compatibility.
+ */
+function reclassifyCaseExprs(lostDests) {
+  if (!lostDests || lostDests.length === 0) {
+    return {
+      answeredExpr: "SUM(disposition = 'ANSWERED')",
+      noAnswerExpr: "SUM(disposition = 'NO ANSWER')",
+      extraParams:  [],
+    };
+  }
+  const lp = lostDests.map(() => '?').join(',');
+  const re = AGENT_DSTCHANNEL_MYSQL;
+  const answeredExpr =
+    `SUM(CASE WHEN dst IN (${lp}) THEN 0 ` +
+    `WHEN UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?) THEN 0 ` +
+    `WHEN UPPER(disposition) = 'ANSWERED' THEN 1 ELSE 0 END)`;
+  const noAnswerExpr =
+    `SUM(CASE WHEN dst IN (${lp}) THEN 1 ` +
+    `WHEN UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?) THEN 1 ` +
+    `WHEN UPPER(disposition) = 'NO ANSWER' THEN 1 ELSE 0 END)`;
+  return {
+    answeredExpr,
+    noAnswerExpr,
+    extraParams: [...lostDests, re, ...lostDests, re],
+  };
+}
+
+const PERIOD_GROUPINGS = {
+  day:   { label: "DATE_FORMAT(calldate, '%Y-%m-%d')", groupBy: "DATE_FORMAT(calldate, '%Y-%m-%d')", orderBy: "period_label" },
+  week:  { label: "DATE_FORMAT(calldate, '%x-W%v')",  groupBy: "DATE_FORMAT(calldate, '%x-%v')",   orderBy: "DATE_FORMAT(calldate, '%x-%v')" },
+  month: { label: "DATE_FORMAT(calldate, '%Y-%m')",   groupBy: "DATE_FORMAT(calldate, '%Y-%m')",   orderBy: "period_label" },
+  year:  { label: "DATE_FORMAT(calldate, '%Y')",      groupBy: "DATE_FORMAT(calldate, '%Y')",      orderBy: "period_label" },
+};
+
+async function queryHistorical(pool, period, from, to, opts = {}) {
+  const { lostDests = [] } = opts;
   const fromTs = from + ' 00:00:00';
   const toTs   = to   + ' 23:59:59';
+  const { answeredExpr, noAnswerExpr, extraParams } = reclassifyCaseExprs(lostDests);
 
   let rows;
 
-  if (period === 'day') {
+  if (period === 'custom') {
     [rows] = await pool.query(
-      `SELECT
-         DATE_FORMAT(calldate, '%Y-%m-%d')  AS period_label,
-         COUNT(*)                            AS total,
-         SUM(disposition = 'ANSWERED')       AS answered,
-         SUM(disposition = 'NO ANSWER')      AS no_answer,
-         SUM(disposition = 'BUSY')           AS busy,
-         SUM(disposition = 'FAILED')         AS failed,
-         ROUND(AVG(duration), 2)             AS avg_duration
-       FROM cdr
-       WHERE calldate >= ? AND calldate <= ?
-       GROUP BY DATE_FORMAT(calldate, '%Y-%m-%d')
-       ORDER BY period_label ASC`,
-      [fromTs, toTs]
-    );
-  } else if (period === 'week') {
-    [rows] = await pool.query(
-      `SELECT
-         DATE_FORMAT(calldate, '%x-W%v')    AS period_label,
-         COUNT(*)                            AS total,
-         SUM(disposition = 'ANSWERED')       AS answered,
-         SUM(disposition = 'NO ANSWER')      AS no_answer,
-         SUM(disposition = 'BUSY')           AS busy,
-         SUM(disposition = 'FAILED')         AS failed,
-         ROUND(AVG(duration), 2)             AS avg_duration
-       FROM cdr
-       WHERE calldate >= ? AND calldate <= ?
-       GROUP BY DATE_FORMAT(calldate, '%x-%v')
-       ORDER BY DATE_FORMAT(calldate, '%x-%v') ASC`,
-      [fromTs, toTs]
-    );
-  } else if (period === 'month') {
-    [rows] = await pool.query(
-      `SELECT
-         DATE_FORMAT(calldate, '%Y-%m')     AS period_label,
-         COUNT(*)                            AS total,
-         SUM(disposition = 'ANSWERED')       AS answered,
-         SUM(disposition = 'NO ANSWER')      AS no_answer,
-         SUM(disposition = 'BUSY')           AS busy,
-         SUM(disposition = 'FAILED')         AS failed,
-         ROUND(AVG(duration), 2)             AS avg_duration
-       FROM cdr
-       WHERE calldate >= ? AND calldate <= ?
-       GROUP BY DATE_FORMAT(calldate, '%Y-%m')
-       ORDER BY period_label ASC`,
-      [fromTs, toTs]
-    );
-  } else if (period === 'year') {
-    [rows] = await pool.query(
-      `SELECT
-         DATE_FORMAT(calldate, '%Y')        AS period_label,
-         COUNT(*)                            AS total,
-         SUM(disposition = 'ANSWERED')       AS answered,
-         SUM(disposition = 'NO ANSWER')      AS no_answer,
-         SUM(disposition = 'BUSY')           AS busy,
-         SUM(disposition = 'FAILED')         AS failed,
-         ROUND(AVG(duration), 2)             AS avg_duration
-       FROM cdr
-       WHERE calldate >= ? AND calldate <= ?
-       GROUP BY DATE_FORMAT(calldate, '%Y')
-       ORDER BY period_label ASC`,
-      [fromTs, toTs]
+      `SELECT COUNT(*) AS total,
+              ${answeredExpr} AS answered,
+              ${noAnswerExpr} AS no_answer,
+              SUM(disposition = 'BUSY')   AS busy,
+              SUM(disposition = 'FAILED') AS failed,
+              ROUND(AVG(duration), 2)     AS avg_duration
+       FROM cdr WHERE calldate >= ? AND calldate <= ?`,
+      [...extraParams, fromTs, toTs]
     );
   } else {
-    // custom — single aggregate
+    const g = PERIOD_GROUPINGS[period];
     [rows] = await pool.query(
-      `SELECT
-         COUNT(*)                            AS total,
-         SUM(disposition = 'ANSWERED')       AS answered,
-         SUM(disposition = 'NO ANSWER')      AS no_answer,
-         SUM(disposition = 'BUSY')           AS busy,
-         SUM(disposition = 'FAILED')         AS failed,
-         ROUND(AVG(duration), 2)             AS avg_duration
-       FROM cdr
-       WHERE calldate >= ? AND calldate <= ?`,
-      [fromTs, toTs]
+      `SELECT ${g.label} AS period_label,
+              COUNT(*)                    AS total,
+              ${answeredExpr}             AS answered,
+              ${noAnswerExpr}             AS no_answer,
+              SUM(disposition = 'BUSY')   AS busy,
+              SUM(disposition = 'FAILED') AS failed,
+              ROUND(AVG(duration), 2)     AS avg_duration
+       FROM cdr WHERE calldate >= ? AND calldate <= ?
+       GROUP BY ${g.groupBy}
+       ORDER BY ${g.orderBy} ASC`,
+      [...extraParams, fromTs, toTs]
     );
   }
 
   let points;
   if (period === 'custom') {
     const r = rows[0];
-    // If no records, total will be 0 (COUNT(*) always returns a row)
     if (Number(r.total) === 0) {
       points = [];
     } else {
@@ -123,20 +112,22 @@ async function queryHistorical(pool, period, from, to) {
   return { period, from, to, points };
 }
 
-async function queryCompare(pool, p1from, p1to, p2from, p2to) {
-  const totalQuery = `SELECT
-    COUNT(*)                            AS total,
-    SUM(disposition = 'ANSWERED')       AS answered,
-    SUM(disposition = 'NO ANSWER')      AS no_answer,
-    SUM(disposition = 'BUSY')           AS busy,
-    SUM(disposition = 'FAILED')         AS failed,
-    ROUND(AVG(duration), 2)             AS avg_duration
-  FROM cdr
-  WHERE calldate >= ? AND calldate <= ?`;
+async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
+  const { lostDests = [] } = opts;
+  const { answeredExpr, noAnswerExpr, extraParams } = reclassifyCaseExprs(lostDests);
+
+  const totalQuery =
+    `SELECT COUNT(*) AS total,
+            ${answeredExpr}             AS answered,
+            ${noAnswerExpr}             AS no_answer,
+            SUM(disposition = 'BUSY')   AS busy,
+            SUM(disposition = 'FAILED') AS failed,
+            ROUND(AVG(duration), 2)     AS avg_duration
+     FROM cdr WHERE calldate >= ? AND calldate <= ?`;
 
   const [[rows1], [rows2]] = await Promise.all([
-    pool.query(totalQuery, [p1from + ' 00:00:00', p1to + ' 23:59:59']),
-    pool.query(totalQuery, [p2from + ' 00:00:00', p2to + ' 23:59:59']),
+    pool.query(totalQuery, [...extraParams, p1from + ' 00:00:00', p1to + ' 23:59:59']),
+    pool.query(totalQuery, [...extraParams, p2from + ' 00:00:00', p2to + ' 23:59:59']),
   ]);
 
   const r1 = rows1[0];
@@ -176,46 +167,46 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to) {
   };
 }
 
-async function queryRankings(pool, from, to, type, limit) {
+async function queryRankings(pool, from, to, type, limit, opts = {}) {
+  const { lostDests = [] } = opts;
   const safeLimit = Math.min(Number(limit) || 10, 50);
   const fromTs = from + ' 00:00:00';
   const toTs   = to   + ' 23:59:59';
+  const { answeredExpr, noAnswerExpr, extraParams } = reclassifyCaseExprs(lostDests);
 
   let rows;
 
   if (type === 'extension') {
     [rows] = await pool.query(
-      `SELECT
-         src                                    AS name,
-         COUNT(*)                               AS total,
-         SUM(disposition = 'ANSWERED')          AS answered,
-         SUM(disposition = 'NO ANSWER')         AS no_answer,
-         SUM(disposition = 'BUSY')              AS busy,
-         SUM(disposition = 'FAILED')            AS failed,
-         ROUND(AVG(duration), 2)                AS avg_duration
+      `SELECT src AS name,
+              COUNT(*)                    AS total,
+              ${answeredExpr}             AS answered,
+              ${noAnswerExpr}             AS no_answer,
+              SUM(disposition = 'BUSY')   AS busy,
+              SUM(disposition = 'FAILED') AS failed,
+              ROUND(AVG(duration), 2)     AS avg_duration
        FROM cdr
        WHERE calldate >= ? AND calldate <= ?
          AND src IS NOT NULL AND src != ''
        GROUP BY src
        ORDER BY total DESC
        LIMIT ?`,
-      [fromTs, toTs, safeLimit]
+      [...extraParams, fromTs, toTs, safeLimit]
     );
   } else {
     // trunk
     [rows] = await pool.query(
-      `SELECT
-         LEFT(channel,
-           CHAR_LENGTH(channel)
-           - CHAR_LENGTH(SUBSTRING_INDEX(channel, '-', -1))
-           - 1
-         )                                       AS name,
-         COUNT(*)                                AS total,
-         SUM(disposition = 'ANSWERED')           AS answered,
-         SUM(disposition = 'NO ANSWER')          AS no_answer,
-         SUM(disposition = 'BUSY')               AS busy,
-         SUM(disposition = 'FAILED')             AS failed,
-         ROUND(AVG(duration), 2)                 AS avg_duration
+      `SELECT LEFT(channel,
+                CHAR_LENGTH(channel)
+                - CHAR_LENGTH(SUBSTRING_INDEX(channel, '-', -1))
+                - 1
+              ) AS name,
+              COUNT(*)                    AS total,
+              ${answeredExpr}             AS answered,
+              ${noAnswerExpr}             AS no_answer,
+              SUM(disposition = 'BUSY')   AS busy,
+              SUM(disposition = 'FAILED') AS failed,
+              ROUND(AVG(duration), 2)     AS avg_duration
        FROM cdr
        WHERE calldate >= ? AND calldate <= ?
          AND channel IS NOT NULL AND channel != ''
@@ -223,7 +214,7 @@ async function queryRankings(pool, from, to, type, limit) {
        GROUP BY name
        ORDER BY total DESC
        LIMIT ?`,
-      [fromTs, toTs, safeLimit]
+      [...extraParams, fromTs, toTs, safeLimit]
     );
   }
 

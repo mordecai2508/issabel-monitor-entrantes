@@ -35,6 +35,7 @@ function isValidDate(s) {
 module.exports = function outboundRouter(pool, config, requireAuth, extractChannel) {
   const router = express.Router();
   const outboundChannels = (config.channels && config.channels.outbound) || [];
+  const lostDests        = config.lostDestinations || [];
 
   // ── GET /api/calls/outbound ────────────────────────────────────────
   router.get('/calls/outbound', requireAuth, async (req, res) => {
@@ -86,7 +87,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
       };
 
       const { rows: data, meta } = await cdrService.queryOutbound(
-        pool, filters, { page, limit }, outboundChannels, extractChannel
+        pool, filters, { page, limit }, outboundChannels, extractChannel, lostDests
       );
 
       res.json({ ok: true, data, meta });
@@ -136,7 +137,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
         disposition: disposition ? disposition.toUpperCase() : null,
       };
 
-      const rows = await cdrService.queryOutboundExport(pool, filters, outboundChannels, extractChannel);
+      const rows = await cdrService.queryOutboundExport(pool, filters, outboundChannels, extractChannel, lostDests);
       const truncated    = rows.length >= cdrService.MAX_EXPORT_ROWS;
       const filenameBase = `salientes_${filters.from}_${filters.to}`;
 

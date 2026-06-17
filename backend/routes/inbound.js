@@ -29,6 +29,7 @@ function isValidDate(s) {
  */
 module.exports = function inboundRouter(pool, config, requireAuth, extractChannel) {
   const router = express.Router();
+  const lostDests = config.lostDestinations || [];
 
   // ── GET /api/calls/inbound ──────────────────────────────────────
   router.get('/calls/inbound', requireAuth, async (req, res) => {
@@ -79,7 +80,7 @@ module.exports = function inboundRouter(pool, config, requireAuth, extractChanne
       };
 
       const { rows: data, meta } = await cdrService.queryInbound(
-        pool, filters, { page, limit }, extractChannel
+        pool, filters, { page, limit }, extractChannel, lostDests
       );
 
       res.json({ ok: true, data, meta });
@@ -128,7 +129,7 @@ module.exports = function inboundRouter(pool, config, requireAuth, extractChanne
         disposition: disposition ? disposition.toUpperCase() : null,
       };
 
-      const rows = await cdrService.queryInboundExport(pool, filters, extractChannel);
+      const rows = await cdrService.queryInboundExport(pool, filters, extractChannel, lostDests);
       const truncated    = rows.length >= cdrService.MAX_EXPORT_ROWS;
       const filenameBase = `entrantes_${filters.from}_${filters.to}`;
 

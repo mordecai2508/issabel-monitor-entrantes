@@ -30,8 +30,9 @@ function isValidDate(s) {
  * @returns {import('express').Router}
  */
 module.exports = function reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk) {
-  const router = express.Router();
+  const router          = express.Router();
   const allowedChannels = (config.channels && config.channels.inbound) || [];
+  const lostDests       = config.lostDestinations || [];
 
   function getAppName() {
     return config.app?.name || 'Call Monitor';
@@ -81,7 +82,7 @@ module.exports = function reportsRouter(pool, config, db, requireAuth, extractCh
       }, REPORT_TIMEOUT_MS);
 
       try {
-        const data = await reportService.collectReportData(pool, type, from, to, { allowedChannels, extractChannel });
+        const data = await reportService.collectReportData(pool, type, from, to, { allowedChannels, extractChannel, lostDests });
 
         clearTimeout(timeoutId);
         if (timedOut) return; // R9 — response already sent

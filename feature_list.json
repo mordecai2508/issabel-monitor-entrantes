@@ -505,6 +505,7 @@
       "id": 27,
       "name": "reclassification_consistency",
       "title": "Aplicar la lógica de reclasificación del dashboard a todos los módulos (Entrantes, Histórico, Analytics, Reportes)",
+
       "description": "Los módulos InboundTable (/inbound/search), OutboundTable (/outbound/search), HistoricalView, HistoricalAnalytics y ReportsModule usan la disposición raw del CDR de MySQL (ANSWERED/NO ANSWER/BUSY/FAILED) sin aplicar las reclasificaciones del dashboard (#17: lostDestinations, #21: ANSWERED sin agente real). Esto genera inconsistencias: una llamada que el dashboard clasifica como 'Perdida' puede aparecer como 'ANSWERED' en la tabla de búsqueda o en el histórico. Esta feature aplica las mismas reglas de resolveDisposition a todos los módulos: (1) Para las tablas de búsqueda de CDR (InboundTable/OutboundTable): cdrService devuelve dst y dstchannel junto a la fila; el backend aplica resolveDisposition antes de responder, reemplazando la disposición raw. (2) Para las queries agregadas (statsService.queryHistorical, queryCompare, queryRankings): se añaden expresiones CASE en SQL que replican la lógica de resolveDisposition, parametrizando config.lostDestinations y la regex AGENT_DSTCHANNEL_RE. (3) reportService.summarizeByDisposition trabaja sobre rows ya reclasificados, por lo que no necesita cambios tras corregir cdrService.",
       "refs": [
         "RF-01",
@@ -523,8 +524,8 @@
         "Las rutas /api/stats/historical, /api/stats/compare y /api/stats/rankings reciben lostDests desde la configuración del servidor (no del cliente)",
         "Tests: fila ANSWERED+dstchannel sin agente → disposition reclasificada NO ANSWER en cdrService; queryHistorical con CASE expressions produce los mismos totales que queryStats para el mismo rango; filtro ?disposition=NO+ANSWER incluye reclasificadas"
       ],
-      "sdd": false,
-      "status": "pending"
+      "sdd": true,
+      "status": "done"
     },
     {
       "id": 28,

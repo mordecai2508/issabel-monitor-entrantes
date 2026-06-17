@@ -126,11 +126,12 @@ function mockPoolQuery(fixtures = {}) {
     if (sql.includes('src') && sql.includes('AS name')) {
       return Promise.resolve([extRanking]);
     }
+    if (sql.includes('dstchannel, channel')) {
+      // inbound SELECT includes both dstchannel and channel columns
+      return Promise.resolve([inboundRows]);
+    }
     if (sql.includes('dstchannel')) {
       return Promise.resolve([outboundRows]);
-    }
-    if (sql.includes('SELECT calldate, src, dst, channel,')) {
-      return Promise.resolve([inboundRows]);
     }
     // queryHistorical('custom') — single aggregate row, no GROUP BY
     return Promise.resolve([aggRows]);

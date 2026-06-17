@@ -2,81 +2,88 @@
 
 const MAX_EXPORT_ROWS = 10000;
 
-/**
- * Build the WHERE clause and params array for inbound CDR queries.
- * @param {object} filters - { from, to, trunk, origin, disposition }
- * @returns {{ conditions: string[], params: any[] }}
- */
-function buildWhereClause(filters) {
+const AGENT_DSTCHANNEL_RE    = /^(Agent\/\d+|SIP\/\d+-)/;
+const AGENT_DSTCHANNEL_MYSQL = '^(Agent/[0-9]+|SIP/[0-9]+-)';
+
+function resolveDispositionLocal(disposition, dst, dstchannel, lostDests) {
+  const d = (disposition || '').toUpperCase();
+  let key = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d) ? d : null;
+  if (!key) return disposition;
+  if (lostDests.includes(dst) && key !== 'NO ANSWER') key = 'NO ANSWER';
+  if (key === 'ANSWERED' && !AGENT_DSTCHANNEL_RE.test(dstchannel || '')) key = 'NO ANSWER';
+  return key;
+}
+
+function buildWhereClause(filters, lostDests = []) {
   const { from, to, trunk, origin, disposition } = filters;
   const conditions = [];
   const params = [];
 
-  // Date range (required)
   conditions.push('calldate >= ?');
   params.push(from + ' 00:00:00');
-
   conditions.push('calldate <= ?');
   params.push(to + ' 23:59:59');
 
-  // Optional: trunk filter via LIKE prefix
   if (trunk) {
-    conditions.push('channel LIKE CONCAT(?, \'%\')');
+    conditions.push("channel LIKE CONCAT(?, '%')");
     params.push(trunk);
   }
 
-  // Optional: origin partial match
   if (origin) {
-    conditions.push('src LIKE CONCAT(\'%\', ?, \'%\')');
+    conditions.push("src LIKE CONCAT('%', ?, '%')");
     params.push(origin);
   }
 
-  // Optional: disposition exact match (case-insensitive)
   if (disposition) {
-    conditions.push('UPPER(disposition) = UPPER(?)');
-    params.push(disposition);
+    const d = disposition.toUpperCase();
+    if (lostDests.length > 0 && d === 'NO ANSWER') {
+      const lp = lostDests.map(() => '?').join(',');
+      conditions.push(
+        `(UPPER(disposition) = 'NO ANSWER' OR dst IN (${lp}) OR ` +
+        `(UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?)))`
+      );
+      params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else if (lostDests.length > 0 && d === 'ANSWERED') {
+      const lp = lostDests.map(() => '?').join(',');
+      conditions.push(
+        `(UPPER(disposition) = 'ANSWERED' AND dst NOT IN (${lp}) AND dstchannel REGEXP ?)`
+      );
+      params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else {
+      conditions.push('UPPER(disposition) = UPPER(?)');
+      params.push(disposition);
+    }
   }
 
   return { conditions, params };
 }
 
-/**
- * Map a raw CDR row to the API shape.
- * @param {object} row
- * @param {Function} extractChannelFn
- * @returns {object}
- */
-function mapRow(row, extractChannelFn) {
+function mapRow(row, extractChannelFn, lostDests = []) {
+  const disp = lostDests.length > 0
+    ? resolveDispositionLocal(row.disposition, row.dst, row.dstchannel || '', lostDests)
+    : row.disposition;
   return {
     calldate:    row.calldate instanceof Date ? row.calldate.toISOString() : row.calldate,
     src:         row.src,
     dst:         row.dst,
     channel:     extractChannelFn(row.channel),
+    dstchannel:  row.dstchannel || '',
     duration:    Number(row.duration),
     billsec:     Number(row.billsec),
-    disposition: row.disposition,
+    disposition: disp || row.disposition,
   };
 }
 
-/**
- * Query individual CDR rows with optional filters and pagination.
- *
- * @param {import('mysql2/promise').Pool} pool
- * @param {{ from: string, to: string, trunk?: string, origin?: string, disposition?: string }} filters
- * @param {{ page?: number, limit?: number }} pagination
- * @param {Function} extractChannelFn
- * @returns {Promise<{ rows: object[], meta: { total: number, page: number, limit: number, totalPages: number } }>}
- */
-async function queryInbound(pool, filters, pagination, extractChannelFn) {
+async function queryInbound(pool, filters, pagination, extractChannelFn, lostDests = []) {
   const page  = Number(pagination.page)  || 1;
   const limit = Number(pagination.limit) || 100;
   const offset = (page - 1) * limit;
 
-  const { conditions, params } = buildWhereClause(filters);
+  const { conditions, params } = buildWhereClause(filters, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countSql = `SELECT COUNT(*) AS total FROM cdr ${where}`;
-  const dataSql  = `SELECT calldate, src, dst, channel, duration, billsec, disposition
+  const dataSql  = `SELECT calldate, src, dst, dstchannel, channel, duration, billsec, disposition
                     FROM cdr
                     ${where}
                     ORDER BY calldate DESC
@@ -88,7 +95,7 @@ async function queryInbound(pool, filters, pagination, extractChannelFn) {
   const dataParams = [...params, limit, offset];
   const [dataRows] = await pool.query(dataSql, dataParams);
 
-  const rows = dataRows.map(r => mapRow(r, extractChannelFn));
+  const rows = dataRows.map(r => mapRow(r, extractChannelFn, lostDests));
   const totalPages = Math.ceil(total / limit);
 
   return {
@@ -97,35 +104,21 @@ async function queryInbound(pool, filters, pagination, extractChannelFn) {
   };
 }
 
-/**
- * Query all matching CDR rows for export (no pagination, capped at MAX_EXPORT_ROWS).
- *
- * @param {import('mysql2/promise').Pool} pool
- * @param {{ from: string, to: string, trunk?: string, origin?: string, disposition?: string }} filters
- * @param {Function} extractChannelFn
- * @returns {Promise<object[]>}
- */
-async function queryInboundExport(pool, filters, extractChannelFn) {
-  const { conditions, params } = buildWhereClause(filters);
+async function queryInboundExport(pool, filters, extractChannelFn, lostDests = []) {
+  const { conditions, params } = buildWhereClause(filters, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const sql = `SELECT calldate, src, dst, channel, duration, billsec, disposition
+  const sql = `SELECT calldate, src, dst, dstchannel, channel, duration, billsec, disposition
                FROM cdr
                ${where}
                ORDER BY calldate DESC
                LIMIT ${MAX_EXPORT_ROWS}`;
 
   const [rows] = await pool.query(sql, params);
-  return rows.map(r => mapRow(r, extractChannelFn));
+  return rows.map(r => mapRow(r, extractChannelFn, lostDests));
 }
 
-/**
- * Build the WHERE clause and params array for outbound CDR queries.
- * @param {object} filters - { from, to, trunk, extension, dest, disposition }
- * @param {string[]} outboundChannels - configured outbound trunk channels (channels.outbound)
- * @returns {{ conditions: string[], params: any[] }}
- */
-function buildOutboundWhereClause(filters, outboundChannels) {
+function buildOutboundWhereClause(filters, outboundChannels, lostDests = []) {
   const conditions = [];
   const params = [];
 
@@ -137,7 +130,6 @@ function buildOutboundWhereClause(filters, outboundChannels) {
   conditions.push("channel NOT LIKE 'Local/%'");
 
   if (!outboundChannels || outboundChannels.length === 0) {
-    // Sin troncales salientes configuradas → ningún resultado
     conditions.push('1 = 0');
   } else {
     const orParts = outboundChannels.map(() => "channel LIKE CONCAT(?, '%')");
@@ -157,21 +149,35 @@ function buildOutboundWhereClause(filters, outboundChannels) {
     conditions.push("dst LIKE CONCAT('%', ?, '%')");
     params.push(filters.dest);
   }
+
   if (filters.disposition) {
-    conditions.push('UPPER(disposition) = UPPER(?)');
-    params.push(filters.disposition);
+    const d = filters.disposition.toUpperCase();
+    if (lostDests.length > 0 && d === 'NO ANSWER') {
+      const lp = lostDests.map(() => '?').join(',');
+      conditions.push(
+        `(UPPER(disposition) = 'NO ANSWER' OR dst IN (${lp}) OR ` +
+        `(UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?)))`
+      );
+      params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else if (lostDests.length > 0 && d === 'ANSWERED') {
+      const lp = lostDests.map(() => '?').join(',');
+      conditions.push(
+        `(UPPER(disposition) = 'ANSWERED' AND dst NOT IN (${lp}) AND dstchannel REGEXP ?)`
+      );
+      params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else {
+      conditions.push('UPPER(disposition) = UPPER(?)');
+      params.push(filters.disposition);
+    }
   }
 
   return { conditions, params };
 }
 
-/**
- * Map a raw outbound CDR row to the API shape.
- * @param {object} row
- * @param {Function} extractChannelFn
- * @returns {object}
- */
-function mapOutboundRow(row, extractChannelFn) {
+function mapOutboundRow(row, extractChannelFn, lostDests = []) {
+  const disp = lostDests.length > 0
+    ? resolveDispositionLocal(row.disposition, row.dst, row.dstchannel || '', lostDests)
+    : row.disposition;
   return {
     calldate:    row.calldate instanceof Date ? row.calldate.toISOString() : row.calldate,
     src:         row.src,
@@ -179,26 +185,16 @@ function mapOutboundRow(row, extractChannelFn) {
     dstchannel:  extractChannelFn ? extractChannelFn(row.dstchannel || '') : (row.dstchannel || ''),
     duration:    Number(row.duration),
     billsec:     Number(row.billsec),
-    disposition: row.disposition,
+    disposition: disp || row.disposition,
   };
 }
 
-/**
- * Query individual outbound CDR rows with optional filters and pagination.
- *
- * @param {import('mysql2/promise').Pool} pool
- * @param {{ from: string, to: string, trunk?: string, extension?: string, dest?: string, disposition?: string }} filters
- * @param {{ page?: number, limit?: number }} pagination
- * @param {string[]} outboundChannels
- * @param {Function} extractChannelFn
- * @returns {Promise<{ rows: object[], meta: { total: number, page: number, limit: number, totalPages: number } }>}
- */
-async function queryOutbound(pool, filters, pagination, outboundChannels, extractChannelFn) {
+async function queryOutbound(pool, filters, pagination, outboundChannels, extractChannelFn, lostDests = []) {
   const page   = Number(pagination.page)  || 1;
   const limit  = Number(pagination.limit) || 100;
   const offset = (page - 1) * limit;
 
-  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels);
+  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countSql = `SELECT COUNT(*) AS total FROM cdr ${where}`;
@@ -214,7 +210,7 @@ async function queryOutbound(pool, filters, pagination, outboundChannels, extrac
   const dataParams = [...params, limit, offset];
   const [dataRows] = await pool.query(dataSql, dataParams);
 
-  const rows = dataRows.map(r => mapOutboundRow(r, extractChannelFn));
+  const rows = dataRows.map(r => mapOutboundRow(r, extractChannelFn, lostDests));
   const totalPages = Math.ceil(total / limit);
 
   return {
@@ -223,17 +219,8 @@ async function queryOutbound(pool, filters, pagination, outboundChannels, extrac
   };
 }
 
-/**
- * Query all matching outbound CDR rows for export (no pagination, capped at MAX_EXPORT_ROWS).
- *
- * @param {import('mysql2/promise').Pool} pool
- * @param {{ from: string, to: string, trunk?: string, extension?: string, dest?: string, disposition?: string }} filters
- * @param {string[]} outboundChannels
- * @param {Function} extractChannelFn
- * @returns {Promise<object[]>}
- */
-async function queryOutboundExport(pool, filters, outboundChannels, extractChannelFn) {
-  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels);
+async function queryOutboundExport(pool, filters, outboundChannels, extractChannelFn, lostDests = []) {
+  const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const sql = `SELECT calldate, src, dst, dstchannel, duration, billsec, disposition
@@ -243,7 +230,7 @@ async function queryOutboundExport(pool, filters, outboundChannels, extractChann
                LIMIT ${MAX_EXPORT_ROWS}`;
 
   const [rows] = await pool.query(sql, params);
-  return rows.map(r => mapOutboundRow(r, extractChannelFn));
+  return rows.map(r => mapOutboundRow(r, extractChannelFn, lostDests));
 }
 
 module.exports = {
