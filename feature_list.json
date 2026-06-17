@@ -544,8 +544,8 @@
         "Ninguna de las gráficas nuevas rompe el render del PDF (page break handling correcto, degradación a 'Sin datos' si no hay registros)",
         "Tests: renderExecutiveBody, renderCallsBody y renderRankingBody en exportService producen el número esperado de secciones/gráficas (verificable contando llamadas a drawBarChart en mocks)"
       ],
-      "sdd": false,
-      "status": "pending"
+      "sdd": true,
+      "status": "done"
     }
   ]
 }

@@ -14,7 +14,7 @@ const {
   OUTBOUND_ROW_KEYS,
 } = require('./reportConstants');
 
-// ── Report titles per type (R13, R18-R28) ───────────────────────────────────
+// ── Report titles per type ───────────────────────────────────────────────────
 const REPORT_TITLES = {
   executive:  'Resumen Ejecutivo',
   inbound:    'Llamadas Entrantes',
@@ -23,53 +23,33 @@ const REPORT_TITLES = {
   trunks:     'Actividad de Troncales',
 };
 
-const RANKING_HEADERS = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'];
+const RANKING_HEADERS  = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'];
 const RANKING_ROW_KEYS = ['name', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration'];
 
-const DISPOSITION_LABELS = {
-  ANSWERED:    'Contestadas',
-  'NO ANSWER': 'No contestadas',
-  BUSY:        'Ocupado',
-  FAILED:      'Fallidas',
-};
-
-const DISPOSITIONS_ORDER = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
+const DISPOSITION_LABELS  = { ANSWERED: 'Contestadas', 'NO ANSWER': 'No contestadas', BUSY: 'Ocupado', FAILED: 'Fallidas' };
+const DISPOSITIONS_ORDER  = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
+const MULTI_COLORS_DEFAULT = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'];
 
 /**
  * Stream an XLSX file to the HTTP response.
- *
- * @param {object[]} rows       - Mapped CDR rows
- * @param {object}   res        - Express response object
- * @param {string}   filenameBase
- * @param {boolean}  [truncated]
- * @param {string[]|null} [headers]   - Column header labels; defaults to inbound labels if null
- * @param {string}   [sheetName]      - Worksheet name; defaults to 'Entrantes'
  */
 async function toXlsx(rows, res, filenameBase, truncated = false, headers = null, sheetName = 'Entrantes') {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.xlsx"`);
-  if (truncated) {
-    res.setHeader('X-Truncated', 'true');
-  }
+  if (truncated) res.setHeader('X-Truncated', 'true');
 
   const workbook  = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
   const worksheet = workbook.addWorksheet(sheetName);
 
-  // Header row
   const effectiveHeaders = headers !== null ? headers : [
-    'Fecha/Hora', 'Origen', 'Destino', 'Troncal',
-    'Duración (s)', 'Seg. facturados', 'Estado',
+    'Fecha/Hora', 'Origen', 'Destino', 'Troncal', 'Duración (s)', 'Seg. facturados', 'Estado',
   ];
-  const headerRow = worksheet.addRow(effectiveHeaders);
-  headerRow.commit();
+  worksheet.addRow(effectiveHeaders).commit();
 
-  // Data rows
   for (const r of rows) {
-    const dataRow = worksheet.addRow([
-      r.calldate, r.src, r.dst, r.channel || r.dstchannel,
-      r.duration, r.billsec, r.disposition,
-    ]);
-    dataRow.commit();
+    worksheet.addRow([
+      r.calldate, r.src, r.dst, r.channel || r.dstchannel, r.duration, r.billsec, r.disposition,
+    ]).commit();
   }
 
   await worksheet.commit();
@@ -77,27 +57,18 @@ async function toXlsx(rows, res, filenameBase, truncated = false, headers = null
 }
 
 /**
- * Helper: draw a table on a PDFDocument.
- * Handles page breaks when content overflows.
- *
- * @param {PDFDocument} doc
- * @param {string[]}    headers
- * @param {object[]}    rows
- * @param {string[]}    [rowKeys] - field keys to read from each row; defaults to inbound keys
+ * Helper: draw a table on a PDFDocument with page-break handling.
  */
 function drawTable(doc, headers, rows, rowKeys = null) {
   const effectiveKeys = rowKeys || ['calldate', 'src', 'dst', 'channel', 'duration', 'billsec', 'disposition'];
-  const colWidths = [130, 80, 60, 110, 65, 70, 75];
-  const rowHeight = 16;
-  const margin    = 40;
+  const colWidths  = [130, 80, 60, 110, 65, 70, 75];
+  const rowHeight  = 16;
+  const margin     = 40;
   const tableWidth = colWidths.reduce((a, b) => a + b, 0);
   let x = margin;
   let y = doc.y + 8;
 
-  // Draw header row background
   doc.rect(x, y, tableWidth, rowHeight).fill('#1e3a5f');
-
-  // Draw header text
   doc.fillColor('#ffffff').fontSize(7).font('Helvetica-Bold');
   let cx = x;
   for (let i = 0; i < headers.length; i++) {
@@ -106,15 +77,12 @@ function drawTable(doc, headers, rows, rowKeys = null) {
   }
   y += rowHeight;
 
-  // Draw data rows
   doc.font('Helvetica').fontSize(6.5).fillColor('#111111');
   let alternate = false;
   for (const r of rows) {
-    // Page break check
     if (y + rowHeight > doc.page.height - margin) {
       doc.addPage();
       y = margin;
-      // Redraw header on new page
       doc.rect(x, y, tableWidth, rowHeight).fill('#1e3a5f');
       doc.fillColor('#ffffff').fontSize(7).font('Helvetica-Bold');
       cx = x;
@@ -127,9 +95,7 @@ function drawTable(doc, headers, rows, rowKeys = null) {
       alternate = false;
     }
 
-    if (alternate) {
-      doc.rect(x, y, tableWidth, rowHeight).fill('#f5f5f5');
-    }
+    if (alternate) doc.rect(x, y, tableWidth, rowHeight).fill('#f5f5f5');
 
     const values = effectiveKeys.map(k => String(r[k] != null ? r[k] : ''));
     doc.fillColor('#111111');
@@ -138,26 +104,14 @@ function drawTable(doc, headers, rows, rowKeys = null) {
       doc.text(values[i], cx + 3, y + 4, { width: colWidths[i] - 6, lineBreak: false });
       cx += colWidths[i];
     }
-
-    // Bottom border
     doc.moveTo(x, y + rowHeight).lineTo(x + tableWidth, y + rowHeight).stroke('#dddddd');
-
     y += rowHeight;
     alternate = !alternate;
   }
 }
 
 /**
- * Stream a PDF file to the HTTP response.
- *
- * @param {object[]} rows         - Mapped CDR rows
- * @param {object}   res          - Express response object
- * @param {string}   filenameBase
- * @param {object}   filters      - { from, to, trunk?, origin?, extension?, dest?, disposition? }
- * @param {boolean}  [truncated]
- * @param {string|null}   [title]      - Document title; defaults to 'Llamadas Entrantes — Búsqueda'
- * @param {string[]|null} [pdfHeaders] - Table column headers; defaults to inbound labels
- * @param {string[]|null} [rowKeys]    - Row field keys for table columns; defaults to inbound keys
+ * Stream a PDF file to the HTTP response (search/export endpoint).
  */
 function toPdf(rows, res, filenameBase, filters, truncated = false, title = null, pdfHeaders = null, rowKeys = null) {
   res.setHeader('Content-Type', 'application/pdf');
@@ -168,17 +122,12 @@ function toPdf(rows, res, filenameBase, filters, truncated = false, title = null
 
   const effectiveTitle = title !== null ? title : 'Llamadas Entrantes — Búsqueda';
 
-  // Title
-  doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f')
-    .text(effectiveTitle, { align: 'center' });
+  doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f').text(effectiveTitle, { align: 'center' });
   doc.moveDown(0.4);
-
-  // Date range
   doc.fontSize(10).font('Helvetica').fillColor('#333333')
     .text(`Rango de fechas: ${filters.from} — ${filters.to}`, { align: 'center' });
   doc.moveDown(0.3);
 
-  // Active filters
   const activeFilters = [];
   if (filters.trunk)       activeFilters.push(`Troncal: ${filters.trunk}`);
   if (filters.origin)      activeFilters.push(`Origen: ${filters.origin}`);
@@ -191,12 +140,9 @@ function toPdf(rows, res, filenameBase, filters, truncated = false, title = null
     doc.moveDown(0.3);
   }
 
-  // Generation timestamp
-  doc.fontSize(8).fillColor('#888888')
-    .text(`Generado: ${new Date().toISOString()}`, { align: 'center' });
+  doc.fontSize(8).fillColor('#888888').text(`Generado: ${new Date().toISOString()}`, { align: 'center' });
   doc.moveDown(0.3);
 
-  // Truncation warning
   if (truncated) {
     doc.fontSize(9).fillColor('#cc0000')
       .text(`AVISO: El resultado fue truncado a ${MAX_EXPORT_ROWS} registros.`, { align: 'center' });
@@ -215,21 +161,8 @@ function toPdf(rows, res, filenameBase, filters, truncated = false, title = null
 }
 
 /**
- * Draw a simple vertical bar chart on a PDFDocument using only vector
- * primitives (rect, text, moveTo/lineTo) — same visual style as drawTable
- * (#1e3a5f / #3b82f6 palette). Bars are scaled relative to the maximum value.
- *
- * @param {PDFDocument} doc
- * @param {object} opts
- * @param {string}   opts.title
- * @param {string[]} opts.labels
- * @param {number[]} opts.values
- * @param {number}   opts.x
- * @param {number}   opts.y
- * @param {number}   opts.width
- * @param {number}   opts.height
- * @param {string}   [opts.color]
- * @returns {number} the y coordinate immediately below the chart
+ * Draw a simple vertical bar chart on a PDFDocument.
+ * @returns {number} y coordinate immediately below the chart
  */
 function drawBarChart(doc, { title, labels, values, x, y, width, height, color = '#3b82f6' }) {
   const titleHeight = 18;
@@ -238,11 +171,9 @@ function drawBarChart(doc, { title, labels, values, x, y, width, height, color =
   const chartHeight = height - titleHeight - labelHeight;
   const chartBottom = chartTop + chartHeight;
 
-  // Title
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e3a5f')
     .text(title, x, y, { width, align: 'left' });
 
-  // Axis line
   doc.moveTo(x, chartBottom).lineTo(x + width, chartBottom).stroke('#cccccc');
 
   if (!labels || labels.length === 0) {
@@ -262,14 +193,9 @@ function drawBarChart(doc, { title, labels, values, x, y, width, height, color =
     const barX      = slotX + (slotWidth - barWidth) / 2;
     const barY      = chartBottom - barHeight;
 
-    // Value label above the bar
     doc.fontSize(7).font('Helvetica').fillColor('#333333')
       .text(String(value), slotX, barY - 10, { width: slotWidth, align: 'center', lineBreak: false });
-
-    // Bar
     doc.rect(barX, barY, barWidth, barHeight).fill(color);
-
-    // Category label below the axis
     doc.fontSize(7).font('Helvetica').fillColor('#555555')
       .text(String(labels[i]), slotX, chartBottom + 3, { width: slotWidth, align: 'center', lineBreak: false });
   }
@@ -278,21 +204,102 @@ function drawBarChart(doc, { title, labels, values, x, y, width, height, color =
 }
 
 /**
- * Draw the shared report header (logo, company name, report title,
- * date range, generation timestamp) at the top of the current PDF page.
- *
+ * Draw a grouped multi-series bar chart on a PDFDocument.
  * @param {PDFDocument} doc
  * @param {object} opts
- * @param {string} opts.type
- * @param {string} opts.from
- * @param {string} opts.to
- * @param {{ companyName: string, logoPath: string|null }} opts.branding
+ * @param {string}   opts.title
+ * @param {string[]} opts.labels
+ * @param {{ label: string, values: number[], color?: string }[]} opts.series
+ * @param {number}   opts.x
+ * @param {number}   opts.y
+ * @param {number}   opts.width
+ * @param {number}   opts.height
+ * @returns {number} y coordinate immediately below the chart
+ */
+function drawMultiBarChart(doc, { title, labels, series, x, y, width, height }) {
+  const titleH  = 18;
+  const legendH = 14;
+  const labelH  = 14;
+  const chartTop    = y + titleH + legendH;
+  const chartH      = height - titleH - legendH - labelH;
+  const chartBottom = chartTop + chartH;
+
+  doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e3a5f')
+    .text(title, x, y, { width, align: 'left' });
+
+  // Legend
+  let lx = x;
+  series.forEach((s, si) => {
+    const col = s.color || MULTI_COLORS_DEFAULT[si % MULTI_COLORS_DEFAULT.length];
+    doc.rect(lx, y + titleH + 3, 8, 8).fill(col);
+    doc.fontSize(7).font('Helvetica').fillColor('#555555')
+      .text(s.label, lx + 11, y + titleH + 4, { lineBreak: false });
+    lx += Math.min(120, width / Math.max(series.length, 1));
+  });
+
+  doc.moveTo(x, chartBottom).lineTo(x + width, chartBottom).stroke('#cccccc');
+
+  if (!labels || labels.length === 0) {
+    doc.fontSize(9).font('Helvetica').fillColor('#888888')
+      .text('Sin datos para el rango seleccionado', x, chartTop + chartH / 2 - 6, { width, align: 'center' });
+    return y + height;
+  }
+
+  const maxVal    = Math.max(1, ...series.flatMap(s => s.values.map(Number)));
+  const n         = series.length;
+  const slotWidth = width / labels.length;
+  const barWidth  = Math.min(20, (slotWidth * 0.7) / Math.max(n, 1));
+  const gap       = 2;
+
+  for (let i = 0; i < labels.length; i++) {
+    const slotX  = x + i * slotWidth;
+    const groupW = barWidth * n + gap * Math.max(n - 1, 0);
+    let bx = slotX + (slotWidth - groupW) / 2;
+
+    for (let si = 0; si < n; si++) {
+      const col = series[si].color || MULTI_COLORS_DEFAULT[si % MULTI_COLORS_DEFAULT.length];
+      const val = Number(series[si].values[i]) || 0;
+      const bh  = chartH > 0 ? (val / maxVal) * Math.max(0, chartH - 14) : 0;
+      const barY = chartBottom - bh;
+
+      doc.rect(bx, barY, barWidth, bh).fill(col);
+      if (bh > 0) {
+        doc.fontSize(5.5).font('Helvetica').fillColor('#333333')
+          .text(String(val), bx, barY - 8, { width: barWidth, align: 'center', lineBreak: false });
+      }
+      bx += barWidth + gap;
+    }
+
+    doc.fontSize(7).font('Helvetica').fillColor('#555555')
+      .text(String(labels[i]), slotX, chartBottom + 3, { width: slotWidth, align: 'center', lineBreak: false });
+  }
+
+  return y + height;
+}
+
+/**
+ * Compute hourly call distribution from a list of CDR rows.
+ * @param {object[]} rows - rows with calldate as ISO string or Date
+ * @returns {{ hour: number, total: number }[]} 24-element array (hour 0-23)
+ */
+function computeHourly(rows) {
+  const counts = Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0 }));
+  for (const r of rows) {
+    try {
+      const h = new Date(r.calldate).getUTCHours();
+      if (h >= 0 && h < 24) counts[h].total++;
+    } catch (_) { /* skip malformed */ }
+  }
+  return counts;
+}
+
+/**
+ * Draw the shared report header (logo, company, title, date range, timestamp).
  */
 function drawReportHeader(doc, { type, from, to, branding }) {
   const margin = 40;
   let textX = margin;
 
-  // Logo (R14) — graceful degradation if not configured (R15)
   if (branding.logoPath && fs.existsSync(branding.logoPath)) {
     try {
       doc.image(branding.logoPath, margin, doc.y, { width: 60 });
@@ -303,35 +310,17 @@ function drawReportHeader(doc, { type, from, to, branding }) {
   }
 
   const startY = doc.y;
-
-  // Company name
-  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f')
-    .text(branding.companyName, textX, startY, { align: 'left' });
-
-  // Report title
-  doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f')
-    .text(REPORT_TITLES[type] || 'Reporte', textX, doc.y + 2, { align: 'left' });
-
-  // Date range
-  doc.fontSize(10).font('Helvetica').fillColor('#333333')
-    .text(`Rango de fechas: ${from} — ${to}`, textX, doc.y + 4, { align: 'left' });
-
-  // Generation timestamp
-  doc.fontSize(8).font('Helvetica').fillColor('#888888')
-    .text(`Generado: ${new Date().toISOString()}`, textX, doc.y + 2, { align: 'left' });
+  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(branding.companyName, textX, startY, { align: 'left' });
+  doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f').text(REPORT_TITLES[type] || 'Reporte', textX, doc.y + 2, { align: 'left' });
+  doc.fontSize(10).font('Helvetica').fillColor('#333333').text(`Rango de fechas: ${from} — ${to}`, textX, doc.y + 4, { align: 'left' });
+  doc.fontSize(8).font('Helvetica').fillColor('#888888').text(`Generado: ${new Date().toISOString()}`, textX, doc.y + 2, { align: 'left' });
 
   doc.y = Math.max(doc.y, startY + 60) + 10;
   doc.x = margin;
-
-  // Separator line
   doc.moveTo(margin, doc.y).lineTo(doc.page.width - margin, doc.y).stroke('#dddddd');
   doc.moveDown(0.6);
 }
 
-/**
- * Draw a centered "no data" message in the body of the report.
- * @param {PDFDocument} doc
- */
 function drawNoDataMessage(doc) {
   doc.moveDown(0.5);
   doc.fontSize(11).font('Helvetica').fillColor('#555555')
@@ -340,16 +329,19 @@ function drawNoDataMessage(doc) {
 }
 
 /**
- * Render the body of the `executive` report (R18-R20).
+ * Render the body of the `executive` report.
+ *
  * @param {PDFDocument} doc
- * @param {object} data - shape returned by reportService.collectReportData(type='executive')
+ * @param {object} data
+ * @param {Function} [_drawBarChart]      - injectable for testing
+ * @param {Function} [_drawMultiBarChart] - injectable for testing
  */
-function renderExecutiveBody(doc, data) {
+function renderExecutiveBody(doc, data, _drawBarChart = drawBarChart, _drawMultiBarChart = drawMultiBarChart) {
   const margin = 40;
   const contentWidth = doc.page.width - margin * 2;
   const { overallTotals, trend, inboundTotals, outboundTotals, topExtensions, topTrunks } = data;
 
-  // KPI summary (R18)
+  // KPI summary
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Resumen general');
   doc.moveDown(0.3);
   doc.fontSize(9).font('Helvetica').fillColor('#111111');
@@ -360,7 +352,6 @@ function renderExecutiveBody(doc, data) {
   doc.text(`Fallidas: ${overallTotals.failed}`);
   doc.text(`Duración media (s): ${overallTotals.avg_duration}`);
   doc.moveDown(0.3);
-
   doc.fontSize(9).font('Helvetica-Bold').fillColor('#1e3a5f').text('Entrantes');
   doc.fontSize(9).font('Helvetica').fillColor('#111111')
     .text(`Total: ${inboundTotals.total} | Contestadas: ${inboundTotals.ANSWERED} | No contestadas: ${inboundTotals['NO ANSWER']} | Ocupado: ${inboundTotals.BUSY} | Fallidas: ${inboundTotals.FAILED}`);
@@ -370,25 +361,57 @@ function renderExecutiveBody(doc, data) {
     .text(`Total: ${outboundTotals.total} | Contestadas: ${outboundTotals.ANSWERED} | No contestadas: ${outboundTotals['NO ANSWER']} | Ocupado: ${outboundTotals.BUSY} | Fallidas: ${outboundTotals.FAILED}`);
   doc.moveDown(0.6);
 
-  // Trend chart (R19)
+  // Distribution chart — Contestadas / No Contestadas / Ocupado / Fallidas (#28)
+  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Distribución de disposición');
+  doc.moveDown(0.2);
+  {
+    const chartHeight = 140;
+    if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
+    const newY = _drawBarChart(doc, {
+      title:  'Llamadas por disposición',
+      labels: ['Contestadas', 'No Contestadas', 'Ocupado', 'Fallidas'],
+      values: [overallTotals.answered, overallTotals.no_answer, overallTotals.busy, overallTotals.failed],
+      x: margin, y: doc.y, width: contentWidth, height: chartHeight,
+      color: '#3b82f6',
+    });
+    doc.y = newY;
+    doc.moveDown(0.6);
+  }
+
+  // Trend — total calls per day
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Tendencia diaria');
   doc.moveDown(0.2);
   if (trend.length === 0) {
     drawNoDataMessage(doc);
   } else {
-    const chartHeight = 140;
+    const chartHeight = 130;
     if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
-    const newY = drawBarChart(doc, {
+    const newY = _drawBarChart(doc, {
       title:  'Llamadas por día',
       labels: trend.map(p => p.period_label),
       values: trend.map(p => p.total),
       x: margin, y: doc.y, width: contentWidth, height: chartHeight,
     });
     doc.y = newY;
+    doc.moveDown(0.4);
+
+    // Contestadas vs No Contestadas per day (#28)
+    const multiHeight = 140;
+    if (doc.y + multiHeight > doc.page.height - margin) doc.addPage();
+    const newY2 = _drawMultiBarChart(doc, {
+      title:  'Contestadas vs No Contestadas por día',
+      labels: trend.map(p => p.period_label),
+      series: [
+        { label: 'Contestadas',    values: trend.map(p => p.answered),  color: '#10b981' },
+        { label: 'No Contestadas', values: trend.map(p => p.no_answer), color: '#f59e0b' },
+      ],
+      x: margin, y: doc.y, width: contentWidth, height: multiHeight,
+    });
+    doc.y = newY2;
     doc.moveDown(0.6);
   }
 
-  // Top-5 extensions (R20)
+  // Top-5 extensions
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Top 5 extensiones');
   doc.moveDown(0.2);
   if (topExtensions.length === 0) {
@@ -399,7 +422,7 @@ function renderExecutiveBody(doc, data) {
   }
   doc.moveDown(0.6);
 
-  // Top-5 trunks (R20)
+  // Top-5 trunks
   if (doc.y + 60 > doc.page.height - margin) doc.addPage();
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Top 5 troncales');
   doc.moveDown(0.2);
@@ -412,11 +435,13 @@ function renderExecutiveBody(doc, data) {
 }
 
 /**
- * Render the body of the `inbound`/`outbound` reports (R21-R24).
+ * Render the body of the `inbound`/`outbound` reports.
+ *
  * @param {PDFDocument} doc
- * @param {object} data - shape returned by reportService.collectReportData(type='inbound'|'outbound')
+ * @param {object} data
+ * @param {Function} [_drawBarChart] - injectable for testing
  */
-function renderCallsBody(doc, data) {
+function renderCallsBody(doc, data, _drawBarChart = drawBarChart) {
   const margin = 40;
   const contentWidth = doc.page.width - margin * 2;
   const { rows, summary, truncated } = data;
@@ -425,21 +450,18 @@ function renderCallsBody(doc, data) {
   const pdfHeaders = isOutbound ? OUTBOUND_PDF_HEADERS : INBOUND_PDF_HEADERS;
   const rowKeys    = isOutbound ? OUTBOUND_ROW_KEYS    : INBOUND_ROW_KEYS;
 
-  // Summary by disposition (R21/R23)
+  // Summary by disposition
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Resumen por disposición');
   doc.moveDown(0.3);
   doc.fontSize(9).font('Helvetica').fillColor('#111111');
   doc.text(`Total: ${summary.total}`);
-  for (const d of DISPOSITIONS_ORDER) {
-    doc.text(`${DISPOSITION_LABELS[d]}: ${summary[d]}`);
-  }
+  for (const d of DISPOSITIONS_ORDER) doc.text(`${DISPOSITION_LABELS[d]}: ${summary[d]}`);
   if (truncated) {
-    doc.fontSize(9).fillColor('#cc0000')
-      .text(`AVISO: El resultado fue truncado a ${MAX_EXPORT_ROWS} registros.`);
+    doc.fontSize(9).fillColor('#cc0000').text(`AVISO: El resultado fue truncado a ${MAX_EXPORT_ROWS} registros.`);
   }
   doc.moveDown(0.6);
 
-  // Disposition distribution chart (R22/R24)
+  // Disposition distribution chart
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Distribución por disposición');
   doc.moveDown(0.2);
   if (summary.total === 0) {
@@ -447,7 +469,7 @@ function renderCallsBody(doc, data) {
   } else {
     const chartHeight = 140;
     if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
-    const newY = drawBarChart(doc, {
+    const newY = _drawBarChart(doc, {
       title:  'Llamadas por disposición',
       labels: DISPOSITIONS_ORDER.map(d => DISPOSITION_LABELS[d]),
       values: DISPOSITIONS_ORDER.map(d => summary[d]),
@@ -457,7 +479,30 @@ function renderCallsBody(doc, data) {
     doc.moveDown(0.6);
   }
 
-  // Detail table (R21/R23)
+  // Hourly distribution chart (#28)
+  doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Distribución horaria');
+  doc.moveDown(0.2);
+  {
+    const hourly = computeHourly(rows);
+    const hasData = hourly.some(h => h.total > 0);
+    if (!hasData) {
+      drawNoDataMessage(doc);
+    } else {
+      const chartHeight = 130;
+      if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
+      const newY = _drawBarChart(doc, {
+        title:  'Llamadas por hora del día',
+        labels: hourly.map(h => String(h.hour).padStart(2, '0')),
+        values: hourly.map(h => h.total),
+        x: margin, y: doc.y, width: contentWidth, height: chartHeight,
+        color: '#8b5cf6',
+      });
+      doc.y = newY;
+      doc.moveDown(0.6);
+    }
+  }
+
+  // Detail table
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text('Detalle de llamadas');
   doc.moveDown(0.2);
   if (rows.length === 0) {
@@ -469,35 +514,53 @@ function renderCallsBody(doc, data) {
 }
 
 /**
- * Render the body of the `extensions`/`trunks` reports (R25-R28).
+ * Render the body of the `extensions`/`trunks` reports.
+ *
  * @param {PDFDocument} doc
- * @param {object} data - shape returned by reportService.collectReportData(type='extensions'|'trunks')
+ * @param {object} data
+ * @param {Function} [_drawBarChart]      - injectable for testing
+ * @param {Function} [_drawMultiBarChart] - injectable for testing
  */
-function renderRankingBody(doc, data) {
+function renderRankingBody(doc, data, _drawBarChart = drawBarChart, _drawMultiBarChart = drawMultiBarChart) {
   const margin = 40;
   const contentWidth = doc.page.width - margin * 2;
   const { rankings, type } = data;
   const label = type === 'extensions' ? 'extensiones' : 'troncales';
 
-  // Top-N chart (R26/R28)
+  // Total volume chart
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(`Top ${label} por volumen de llamadas`);
   doc.moveDown(0.2);
   if (rankings.length === 0) {
     drawNoDataMessage(doc);
   } else {
-    const chartHeight = 160;
+    const chartHeight = 150;
     if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
-    const newY = drawBarChart(doc, {
+    const newY = _drawBarChart(doc, {
       title:  `Total de llamadas por ${type === 'extensions' ? 'extensión' : 'troncal'}`,
       labels: rankings.map(r => r.name),
       values: rankings.map(r => r.total),
       x: margin, y: doc.y, width: contentWidth, height: chartHeight,
     });
     doc.y = newY;
+    doc.moveDown(0.4);
+
+    // Contestadas vs No Contestadas comparison (#28)
+    const multiHeight = 150;
+    if (doc.y + multiHeight > doc.page.height - margin) doc.addPage();
+    const newY2 = _drawMultiBarChart(doc, {
+      title:  `Contestadas vs No Contestadas por ${type === 'extensions' ? 'extensión' : 'troncal'}`,
+      labels: rankings.map(r => r.name),
+      series: [
+        { label: 'Contestadas',    values: rankings.map(r => r.answered),  color: '#10b981' },
+        { label: 'No Contestadas', values: rankings.map(r => r.no_answer), color: '#f59e0b' },
+      ],
+      x: margin, y: doc.y, width: contentWidth, height: multiHeight,
+    });
+    doc.y = newY2;
     doc.moveDown(0.6);
   }
 
-  // Ranking table (R25/R27)
+  // Ranking table
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(`Ranking de ${label}`);
   doc.moveDown(0.2);
   if (rankings.length === 0) {
@@ -509,16 +572,7 @@ function renderRankingBody(doc, data) {
 }
 
 /**
- * Build a full multi-section report PDF and pipe it to the HTTP response.
- *
- * @param {object} res - Express response object
- * @param {object} opts
- * @param {string} opts.type         - one of reportService.REPORT_TYPES
- * @param {string} opts.from         - YYYY-MM-DD
- * @param {string} opts.to           - YYYY-MM-DD
- * @param {{ companyName: string, logoPath: string|null }} opts.branding
- * @param {object} opts.data         - shape returned by reportService.collectReportData
- * @param {string} opts.filenameBase
+ * Build a full report PDF and pipe it to the HTTP response.
  */
 function buildReportPdf(res, { type, from, to, branding, data, filenameBase }) {
   res.setHeader('Content-Type', 'application/pdf');
@@ -541,15 +595,7 @@ function buildReportPdf(res, { type, from, to, branding, data, filenameBase }) {
 }
 
 /**
- * Write the shared header block (title, company, date range, timestamp)
- * as plain rows at the top of an Excel worksheet (R29).
- *
- * @param {ExcelJS.Worksheet} worksheet
- * @param {object} opts
- * @param {string} opts.title
- * @param {string} opts.companyName
- * @param {string} opts.from
- * @param {string} opts.to
+ * Write header block rows at the top of an Excel worksheet.
  */
 function writeXlsxHeaderBlock(worksheet, { title, companyName, from, to }) {
   worksheet.addRow([title]).commit();
@@ -560,13 +606,7 @@ function writeXlsxHeaderBlock(worksheet, { title, companyName, from, to }) {
 }
 
 /**
- * Write a data table (header row + data rows) to an Excel worksheet.
- * If there are no rows, writes a single "Sin datos" row (R30).
- *
- * @param {ExcelJS.Worksheet} worksheet
- * @param {string[]} headers
- * @param {object[]} rows
- * @param {string[]} rowKeys
+ * Write a data table to a worksheet. Writes a "Sin datos" row if empty.
  */
 function writeXlsxTable(worksheet, headers, rows, rowKeys) {
   worksheet.addRow(headers).commit();
@@ -580,16 +620,21 @@ function writeXlsxTable(worksheet, headers, rows, rowKeys) {
 }
 
 /**
- * Build a full multi-section report workbook and stream it to the HTTP response.
- *
- * @param {object} res - Express response object
- * @param {object} opts
- * @param {string} opts.type         - one of reportService.REPORT_TYPES
- * @param {string} opts.from         - YYYY-MM-DD
- * @param {string} opts.to           - YYYY-MM-DD
- * @param {{ companyName: string, logoPath: string|null }} opts.branding
- * @param {object} opts.data         - shape returned by reportService.collectReportData
- * @param {string} opts.filenameBase
+ * Write a 'Datos para gráfica' sheet with a note and pre-grouped data.
+ * Documents the ExcelJS streaming limitation so the user knows to build
+ * charts manually in Excel/Google Sheets.
+ */
+async function writeXlsxChartDataSheet(workbook, headers, rows, rowKeys, headerOpts) {
+  const ws = workbook.addWorksheet('Datos para gráfica');
+  writeXlsxHeaderBlock(ws, headerOpts);
+  ws.addRow(['Datos pre-agrupados para crear gráficas en Excel o Google Sheets (ExcelJS streaming no soporta gráficas nativas)']).commit();
+  ws.addRow([]).commit();
+  writeXlsxTable(ws, headers, rows, rowKeys);
+  await ws.commit();
+}
+
+/**
+ * Build a full report workbook and stream it to the HTTP response.
  */
 async function buildReportXlsx(res, { type, from, to, branding, data, filenameBase }) {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -614,8 +659,8 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
 
     const wsTrend = workbook.addWorksheet('Tendencia');
     writeXlsxHeaderBlock(wsTrend, headerOpts);
-    writeXlsxTable(wsTrend, ['Fecha', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'], trend,
-      ['period_label', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration']);
+    writeXlsxTable(wsTrend, ['Fecha', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'],
+      trend, ['period_label', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration']);
     await wsTrend.commit();
 
     const wsExt = workbook.addWorksheet('Top Extensiones');
@@ -628,11 +673,20 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
     writeXlsxTable(wsTrunks, RANKING_HEADERS, topTrunks, RANKING_ROW_KEYS);
     await wsTrunks.commit();
 
+    // Datos para gráfica — tendencia diaria (#28)
+    await writeXlsxChartDataSheet(
+      workbook,
+      ['Período', 'Total', 'Contestadas', 'No Contestadas'],
+      trend,
+      ['period_label', 'total', 'answered', 'no_answer'],
+      headerOpts
+    );
+
   } else if (type === 'inbound' || type === 'outbound') {
     const { rows, summary } = data;
-    const isOutbound = type === 'outbound';
+    const isOutbound  = type === 'outbound';
     const xlsxHeaders = isOutbound ? OUTBOUND_XLSX_HEADERS : INBOUND_XLSX_HEADERS;
-    const rowKeys     = isOutbound ? OUTBOUND_ROW_KEYS    : INBOUND_ROW_KEYS;
+    const rowKeys     = isOutbound ? OUTBOUND_ROW_KEYS     : INBOUND_ROW_KEYS;
 
     const wsResumen = workbook.addWorksheet('Resumen');
     writeXlsxHeaderBlock(wsResumen, headerOpts);
@@ -652,33 +706,45 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
     writeXlsxTable(wsDetalle, xlsxHeaders, rows, rowKeys);
     await wsDetalle.commit();
 
+    // Datos para gráfica — distribución horaria (#28)
+    await writeXlsxChartDataSheet(
+      workbook,
+      ['Hora', 'Total llamadas'],
+      computeHourly(rows),
+      ['hour', 'total'],
+      headerOpts
+    );
+
   } else {
     // extensions / trunks
     const { rankings } = data;
+
     const wsRanking = workbook.addWorksheet('Ranking');
     writeXlsxHeaderBlock(wsRanking, headerOpts);
     writeXlsxTable(wsRanking, RANKING_HEADERS, rankings, RANKING_ROW_KEYS);
     await wsRanking.commit();
+
+    // Datos para gráfica — contestadas vs no contestadas por nombre (#28)
+    await writeXlsxChartDataSheet(
+      workbook,
+      ['Nombre', 'Total', 'Contestadas', 'No Contestadas'],
+      rankings,
+      ['name', 'total', 'answered', 'no_answer'],
+      headerOpts
+    );
   }
 
   await workbook.commit();
 }
 
-/**
- * Build the rows for the executive summary table (overall vs. inbound vs. outbound).
- * @param {object} overallTotals
- * @param {object} inboundTotals
- * @param {object} outboundTotals
- * @returns {object[]}
- */
 function buildExecutiveSummaryRows(overallTotals, inboundTotals, outboundTotals) {
   return [
-    { metric: 'Total de llamadas', total: overallTotals.total,     inbound: inboundTotals.total,            outbound: outboundTotals.total },
-    { metric: 'Contestadas',       total: overallTotals.answered,  inbound: inboundTotals.ANSWERED,         outbound: outboundTotals.ANSWERED },
-    { metric: 'No contestadas',    total: overallTotals.no_answer, inbound: inboundTotals['NO ANSWER'],     outbound: outboundTotals['NO ANSWER'] },
-    { metric: 'Ocupado',           total: overallTotals.busy,      inbound: inboundTotals.BUSY,             outbound: outboundTotals.BUSY },
-    { metric: 'Fallidas',          total: overallTotals.failed,    inbound: inboundTotals.FAILED,           outbound: outboundTotals.FAILED },
-    { metric: 'Duración media (s)', total: overallTotals.avg_duration, inbound: '—', outbound: '—' },
+    { metric: 'Total de llamadas',  total: overallTotals.total,        inbound: inboundTotals.total,          outbound: outboundTotals.total },
+    { metric: 'Contestadas',        total: overallTotals.answered,     inbound: inboundTotals.ANSWERED,       outbound: outboundTotals.ANSWERED },
+    { metric: 'No contestadas',     total: overallTotals.no_answer,    inbound: inboundTotals['NO ANSWER'],   outbound: outboundTotals['NO ANSWER'] },
+    { metric: 'Ocupado',            total: overallTotals.busy,         inbound: inboundTotals.BUSY,           outbound: outboundTotals.BUSY },
+    { metric: 'Fallidas',           total: overallTotals.failed,       inbound: inboundTotals.FAILED,         outbound: outboundTotals.FAILED },
+    { metric: 'Duración media (s)', total: overallTotals.avg_duration, inbound: '—',                         outbound: '—' },
   ];
 }
 
@@ -687,6 +753,11 @@ module.exports = {
   toPdf,
   drawTable,
   drawBarChart,
+  drawMultiBarChart,
+  computeHourly,
   buildReportPdf,
   buildReportXlsx,
+  renderExecutiveBody,
+  renderCallsBody,
+  renderRankingBody,
 };
