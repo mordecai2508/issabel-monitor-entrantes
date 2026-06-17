@@ -15,8 +15,8 @@ function fmtDuration(sec) {
 }
 
 export function ChannelTable({ channels, channelAliases = {} }) {
-  const [sortKey, setSortKey]   = useState('total');
-  const [sortDir, setSortDir]   = useState('desc');
+  const [sortKey, setSortKey] = useState('total');
+  const [sortDir, setSortDir] = useState('desc');
 
   if (!channels || channels.length === 0) {
     return (
@@ -25,6 +25,13 @@ export function ChannelTable({ channels, channelAliases = {} }) {
       </div>
     );
   }
+
+  // Pre-compute derived breakdown fields for sorting and display
+  const enriched = channels.map(ch => ({
+    ...ch,
+    ivr_hangup: ch.breakdown?.ivr_hangup ?? 0,
+    unanswered: (ch.breakdown?.no_answer ?? 0) + (ch.breakdown?.queue_no_agent ?? 0),
+  }));
 
   function toggleSort(key) {
     if (sortKey === key) {
@@ -35,8 +42,8 @@ export function ChannelTable({ channels, channelAliases = {} }) {
     }
   }
 
-  const sorted = [...channels].sort((a, b) => {
-    const diff = a[sortKey] - b[sortKey];
+  const sorted = [...enriched].sort((a, b) => {
+    const diff = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
     return sortDir === 'asc' ? diff : -diff;
   });
 
@@ -60,11 +67,12 @@ export function ChannelTable({ channels, channelAliases = {} }) {
         <thead>
           <tr className="border-b border-slate-700">
             <th className="text-left text-xs text-slate-500 font-medium uppercase tracking-wider pb-2">Canal</th>
-            <SortHeader col="total"       label="Total" />
-            <SortHeader col="ANSWERED"    label="Contest." />
-            <SortHeader col="NO ANSWER"   label="No Contest." />
-            <SortHeader col="BUSY"        label="Ocupado" />
-            <SortHeader col="FAILED"      label="Fallidas" />
+            <SortHeader col="total"        label="Total" />
+            <SortHeader col="ANSWERED"     label="Contest." />
+            <SortHeader col="ivr_hangup"   label="Perdidas" />
+            <SortHeader col="unanswered"   label="No Contest." />
+            <SortHeader col="BUSY"         label="Ocupado" />
+            <SortHeader col="FAILED"       label="Fallidas" />
             <SortHeader col="total_billsec" label="Tiempo" />
           </tr>
         </thead>
@@ -82,8 +90,12 @@ export function ChannelTable({ channels, channelAliases = {} }) {
                 <span className="text-slate-600 text-xs ml-1">({pct(ch.ANSWERED, ch.total)})</span>
               </td>
               <td className="py-2.5 text-right">
-                <span className="text-amber-400">{ch['NO ANSWER']}</span>
-                <span className="text-slate-600 text-xs ml-1">({pct(ch['NO ANSWER'], ch.total)})</span>
+                <span className="text-red-400">{ch.ivr_hangup}</span>
+                <span className="text-slate-600 text-xs ml-1">({pct(ch.ivr_hangup, ch.total)})</span>
+              </td>
+              <td className="py-2.5 text-right">
+                <span className="text-amber-400">{ch.unanswered}</span>
+                <span className="text-slate-600 text-xs ml-1">({pct(ch.unanswered, ch.total)})</span>
               </td>
               <td className="py-2.5 text-right">
                 <span className="text-red-400">{ch.BUSY}</span>

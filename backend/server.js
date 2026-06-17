@@ -21,6 +21,7 @@ const path          = require('path');
 const { initDb }    = require('./db/setup');
 const userService   = require('./services/userService');
 const auditService  = require('./services/auditService');
+const configService = require('./services/configService');
 const inboundRouter  = require('./routes/inbound');
 const outboundRouter = require('./routes/outbound');
 const statsRouter    = require('./routes/stats');
@@ -147,19 +148,38 @@ function classifyUnansweredReason(row, lostDests) {
   return 'no_answer';
 }
 
-async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
+// ── Clasificación por horario de atención (#25) ───────────────────
+// callHour: 0-23 (HOUR(calldate)), callDow: 1-7 (DAYOFWEEK, 1=domingo).
+// businessHours: { days: [0-6], start: 'HH:MM', end: 'HH:MM' } | null.
+// Devuelve true (dentro), false (fuera) o null (no configurado).
+function isWithinBusinessHours(callHour, callDow, businessHours) {
+  if (!businessHours || !Array.isArray(businessHours.days) || !businessHours.start || !businessHours.end) {
+    return null;
+  }
+  // MySQL DAYOFWEEK: 1=domingo…7=sábado → índice 0=domingo…6=sábado
+  const dayIndex = callDow - 1;
+  if (!businessHours.days.includes(dayIndex)) return false;
+
+  const startH = parseInt(businessHours.start.split(':')[0], 10);
+  const endH   = parseInt(businessHours.end.split(':')[0], 10);
+  return callHour >= startH && callHour < endH;
+}
+
+async function queryStats(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup'], businessHours = null) {
   const [rows] = await pool.query(
     `SELECT
        channel,
        dst,
        dstchannel,
        disposition,
+       HOUR(calldate)              AS call_hour,
+       DAYOFWEEK(calldate)         AS call_dow,
        COUNT(*)                    AS count,
        COALESCE(SUM(duration), 0)  AS total_duration,
        COALESCE(SUM(billsec), 0)   AS total_billsec
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, dst, dstchannel, disposition`,
+     GROUP BY channel, dst, dstchannel, disposition, HOUR(calldate), DAYOFWEEK(calldate)`,
     [from, to]
   );
 
@@ -167,7 +187,7 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
     ANSWERED:    { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
     'NO ANSWER': {
       count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0,
-      breakdown: { no_answer: 0, ivr_hangup: 0, queue_no_agent: 0 },
+      breakdown: { no_answer: 0, ivr_hangup: 0, queue_no_agent: 0, ivr_hangup_business: 0, ivr_hangup_offhours: 0 },
     },
     BUSY:        { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
     FAILED:      { count: 0, total_duration: 0, total_billsec: 0, avg_billsec: 0, pct: 0 },
@@ -187,6 +207,13 @@ async function queryStats(pool, from, to, inboundChannels, outboundChannels, dir
       if (targetKey === 'NO ANSWER') {
         const reason = classifyUnansweredReason(r, lostDests);
         base['NO ANSWER'].breakdown[reason] += Number(r.count);
+
+        // #25: split ivr_hangup por horario de atención
+        if (reason === 'ivr_hangup') {
+          const inHours = isWithinBusinessHours(Number(r.call_hour), Number(r.call_dow), businessHours);
+          if (inHours === true)  base['NO ANSWER'].breakdown.ivr_hangup_business += Number(r.count);
+          if (inHours === false) base['NO ANSWER'].breakdown.ivr_hangup_offhours += Number(r.count);
+        }
       }
     }
     total += Number(r.count);
@@ -222,12 +249,21 @@ async function queryChannels(pool, from, to, inboundChannels, outboundChannels, 
     if (!passesFilter(r.channel, inboundChannels, outboundChannels, direction)) continue;
     const ch = extractChannel(r.channel);
     if (!map[ch]) {
-      map[ch] = { channel: ch, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0, total_billsec: 0 };
+      map[ch] = {
+        channel: ch,
+        ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0,
+        total: 0, total_billsec: 0,
+        breakdown: { ivr_hangup: 0, no_answer: 0, queue_no_agent: 0 },
+      };
     }
 
     const targetKey = resolveDisposition(r, lostDests);
     if (targetKey) {
       map[ch][targetKey] += Number(r.count);
+      if (targetKey === 'NO ANSWER') {
+        const reason = classifyUnansweredReason(r, lostDests);
+        map[ch].breakdown[reason] += Number(r.count);
+      }
     }
     map[ch].total         += Number(r.count);
     map[ch].total_billsec += Number(r.total_billsec);
@@ -255,6 +291,7 @@ async function queryHourly(pool, from, to, inboundChannels, outboundChannels, di
   const hours = Array.from({ length: 24 }, (_, i) => ({
     hour: i,
     ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0,
+    breakdown: { ivr_hangup: 0, queue_no_agent: 0, no_answer: 0 },
   }));
 
   for (const r of rows) {
@@ -264,6 +301,10 @@ async function queryHourly(pool, from, to, inboundChannels, outboundChannels, di
     const targetKey = resolveDisposition(r, lostDests);
     if (targetKey) {
       hours[h][targetKey] += Number(r.count);
+      if (targetKey === 'NO ANSWER') {
+        const reason = classifyUnansweredReason(r, lostDests);
+        hours[h].breakdown[reason] += Number(r.count);
+      }
     }
     hours[h].total += Number(r.count);
   }
@@ -478,19 +519,20 @@ async function startServer() {
   function getAppName()  { return config.app?.name || 'Call Monitor'; }
 
   async function fetchData(from, to) {
+    const businessHours = configService.getBusinessHours(db);
     const [
       totalStats, totalChannels, totalHourly,
       inStats, inChannels, inHourly,
       outStats, outChannels,
       queues,
     ] = await Promise.all([
-      queryStats(pool, from, to, inboundChannels, outboundChannels, null,  lostDests),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, null,  lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
       queryHourly(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
-      queryStats(pool, from, to, inboundChannels, outboundChannels, 'in',  lostDests),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, 'in',  lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
       queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
-      queryStats(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
+      queryStats(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
       queryQueues(pool, from, to, inboundChannels, outboundChannels, configQueues, lostDests),
     ]);
@@ -501,6 +543,7 @@ async function startServer() {
       queues,
       channelAliases: getAliases(),
       appName: getAppName(),
+      businessHours,
       from, to,
       generatedAt: new Date().toISOString(),
     };

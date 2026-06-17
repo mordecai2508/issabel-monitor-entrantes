@@ -458,6 +458,93 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 25,
+      "name": "dashboard_perdidas_business_hours",
+      "title": "Desglose de 'Perdidas' por horario de atención en el dashboard",
+      "description": "La StatCard 'Perdidas' (ivr_hangup, feature #24) muestra un total sin distinguir si la llamada ocurrió dentro o fuera del horario de atención configurado. Esta feature divide ese total en dos sub-cifras: (1) 'En horario' = ivr_hangup durante el horario de atención; (2) 'Fuera de horario' = ivr_hangup fuera del horario. El horario se configura desde el panel de administrador (días de la semana + hora inicio/fin) y se evalúa sobre el campo calldate de la tabla cdr (usando la timezone ya configurada en config.json). Si no hay horario configurado, la tarjeta mantiene el comportamiento actual sin desglose.",
+      "refs": [
+        "RF-01"
+      ],
+      "acceptance": [
+        "La tabla system_config (SQLite) almacena la clave 'business_hours' con valor JSON { days: [0-6], start: 'HH:MM', end: 'HH:MM' } (0=domingo); ausencia de la clave equivale a horario no configurado",
+        "GET /api/admin/config incluye business_hours en la respuesta; PATCH /api/admin/config permite actualizar business_hours con validación de formato",
+        "SystemConfig.jsx (admin) muestra una sección 'Horario de Atención' con checkboxes Lu-Do y campos hora inicio/fin, guardando via PATCH /api/admin/config",
+        "queryStats aplica el horario de atención para separar ivr_hangup en ivr_hangup_business e ivr_hangup_offhours dentro del breakdown de dispositions['NO ANSWER']; la suma ivr_hangup_business + ivr_hangup_offhours = ivr_hangup (igual que hoy)",
+        "El payload de fetchData (SSE init/update y /api/calls/today) incluye businessHours activo y el nuevo desglose sin romper campos existentes",
+        "La StatCard 'Perdidas' muestra el total ivr_hangup con dos sub-cifras 'En horario: N' y 'Fuera de horario: N' cuando business_hours está configurado; si no está configurado, muestra solo el total (comportamiento actual)",
+        "La evaluación del horario usa la timezone de config.json (mismo offset ya usado en queryStats para el campo calldate)",
+        "Tests: ivr_hangup dentro del horario, fuera del horario, en el límite exacto de inicio/fin, con horario no configurado (desglose omitido), días de semana excluidos"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 26,
+      "name": "channel_table_breakdown",
+      "title": "Tabla 'Estadísticas por canal' con desglose de Perdidas y No Contestadas",
+      "description": "La tabla 'Estadísticas por canal' del dashboard (ChannelTable) muestra actualmente una columna 'No Contest.' que agrupa el total de NO ANSWER reclasificado por queryChannels (incluye ivr_hangup + no_answer + queue_no_agent), sin distinguir entre llamadas Perdidas (colgaron en IVR) y No Contestadas (sin agente). Esta feature divide esa columna en dos: 'Perdidas' (ivr_hangup por canal) y 'No Contestadas' (no_answer + queue_no_agent por canal), aplicando la misma lógica de classifyUnansweredReason que ya usa queryStats. Requiere modificar queryChannels en server.js para acumular el breakdown por canal y actualizar ChannelTable.jsx para mostrar las dos nuevas columnas. El componente ChannelTable se reutiliza en InboundView, por lo que el cambio aplica a ambas vistas.",
+      "refs": [
+        "RF-01",
+        "RF-02"
+      ],
+      "acceptance": [
+        "queryChannels acumula un objeto breakdown por canal: { ivr_hangup: N, no_answer: N, queue_no_agent: N }, aplicando classifyUnansweredReason a cada fila resuelta como 'NO ANSWER'; la suma ivr_hangup + no_answer + queue_no_agent = canal['NO ANSWER'] exactamente",
+        "El payload de fetchData (SSE + /api/calls/today) incluye el breakdown por canal sin romper campos existentes; cada entrada de channels[] añade el campo breakdown sin eliminar ANSWERED/NO ANSWER/BUSY/FAILED",
+        "ChannelTable.jsx reemplaza la columna 'No Contest.' por dos columnas: 'Perdidas' (ivr_hangup, color rojo) y 'No Contest.' (no_answer + queue_no_agent, color ámbar), ambas con porcentaje sobre el total del canal",
+        "El ordenamiento por columna (SortHeader) funciona para ambas columnas nuevas",
+        "El componente se degrada correctamente cuando breakdown está ausente (datos legacy): muestra 0 sin romper el render",
+        "La misma ChannelTable aplicada en InboundView muestra las columnas nuevas consistentemente",
+        "Tests: queryChannels con mix de ivr_hangup/no_answer/queue_no_agent por canal, suma breakdown = canal['NO ANSWER'], degradación con breakdown ausente"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 27,
+      "name": "reclassification_consistency",
+      "title": "Aplicar la lógica de reclasificación del dashboard a todos los módulos (Entrantes, Histórico, Analytics, Reportes)",
+      "description": "Los módulos InboundTable (/inbound/search), OutboundTable (/outbound/search), HistoricalView, HistoricalAnalytics y ReportsModule usan la disposición raw del CDR de MySQL (ANSWERED/NO ANSWER/BUSY/FAILED) sin aplicar las reclasificaciones del dashboard (#17: lostDestinations, #21: ANSWERED sin agente real). Esto genera inconsistencias: una llamada que el dashboard clasifica como 'Perdida' puede aparecer como 'ANSWERED' en la tabla de búsqueda o en el histórico. Esta feature aplica las mismas reglas de resolveDisposition a todos los módulos: (1) Para las tablas de búsqueda de CDR (InboundTable/OutboundTable): cdrService devuelve dst y dstchannel junto a la fila; el backend aplica resolveDisposition antes de responder, reemplazando la disposición raw. (2) Para las queries agregadas (statsService.queryHistorical, queryCompare, queryRankings): se añaden expresiones CASE en SQL que replican la lógica de resolveDisposition, parametrizando config.lostDestinations y la regex AGENT_DSTCHANNEL_RE. (3) reportService.summarizeByDisposition trabaja sobre rows ya reclasificados, por lo que no necesita cambios tras corregir cdrService.",
+      "refs": [
+        "RF-01",
+        "RF-02",
+        "RF-03",
+        "RF-04"
+      ],
+      "acceptance": [
+        "cdrService.mapRow y mapOutboundRow incluyen los campos dst y dstchannel en el objeto de salida; el backend aplica resolveDisposition(row, lostDests) a cada fila antes de enviarla al cliente, sobreescribiendo el campo disposition con la disposición reclasificada",
+        "Una llamada con disposition='ANSWERED' y dstchannel sin agente (no matching /^(Agent\\/\\d+|SIP\\/\\d+-)/) aparece como 'NO ANSWER' en InboundTable y OutboundTable, igual que en el dashboard",
+        "Una llamada con dst en config.lostDestinations aparece como 'NO ANSWER' en las tablas de búsqueda, independientemente de su disposition original",
+        "statsService.queryHistorical, queryCompare y queryRankings aceptan { lostDests, agentRe } como parámetro y aplican CASE expressions equivalentes a resolveDisposition para producir columnas answered_reclassified y no_answer_reclassified (que reemplazan los cálculos anteriores de SUM(disposition='ANSWERED') y SUM(disposition='NO ANSWER'))",
+        "Los valores de 'Contestadas' y 'No contestadas' en HistoricalView/HistoricalAnalytics coinciden con los del dashboard para el mismo período (día actual)",
+        "El filtro ?disposition= en /api/calls/inbound y /api/calls/outbound filtra sobre la disposición reclasificada: pasar disposition=NO+ANSWER devuelve también las llamadas originalmente ANSWERED que fueron reclasificadas",
+        "reportService.collectReportData pasa lostDests al llamar a statsService para que los totales de reportes coincidan con el dashboard",
+        "Las rutas /api/stats/historical, /api/stats/compare y /api/stats/rankings reciben lostDests desde la configuración del servidor (no del cliente)",
+        "Tests: fila ANSWERED+dstchannel sin agente → disposition reclasificada NO ANSWER en cdrService; queryHistorical con CASE expressions produce los mismos totales que queryStats para el mismo rango; filtro ?disposition=NO+ANSWER incluye reclasificadas"
+      ],
+      "sdd": false,
+      "status": "pending"
+    },
+    {
+      "id": 28,
+      "name": "reports_charts_enhancement",
+      "title": "Ampliar gráficas en reportes PDF y agregar hoja de gráficas en Excel",
+      "description": "Los reportes PDF generados actualmente incluyen algunas gráficas (una barra de tendencia diaria en el ejecutivo, y una distribución de disposición en entrantes/salientes), pero no muestran comparativas de Contestadas vs Perdidas vs No Contestadas usando la terminología del dashboard (resultado de #27), ni un desglose horario, ni un gráfico de rendimiento de troncales con las categorías correctas. Esta feature amplía los reportes PDF con gráficas adicionales y significativas: (1) Ejecutivo: gráfica comparativa Contestadas/Perdidas/No Contestadas + gráfica de tendencia con desglose de categorías; (2) Entrantes/Salientes: gráfica de distribución horaria de llamadas; (3) Extensiones/Troncales: añadir una segunda barra de contestadas vs no-contestadas junto al volumen total. Para Excel: agregar una hoja 'Gráficas' con tablas pivot listas para crear gráficos en el lector (dado que ExcelJS streaming no soporta gráficas nativas, se genera una hoja adicional con datos pre-agrupados y se documenta la limitación).",
+      "refs": [
+        "RF-07"
+      ],
+      "acceptance": [
+        "El PDF del reporte ejecutivo incluye: (a) gráfica de barras comparativa de Contestadas / No Contestadas / Ocupado / Fallidas (usando los totales reclasificados de #27); (b) la gráfica de tendencia diaria existente se extiende con dos series: contestadas y no contestadas por día (usando datos de queryHistorical con reclasificación de #27)",
+        "El PDF de entrantes y salientes incluye una gráfica de barras con el número de llamadas por hora (distribución horaria), usando los datos de queryHourly o un query equivalente sobre el rango seleccionado",
+        "El PDF de extensiones y troncales incluye una segunda gráfica de barras con Contestadas vs No Contestadas por extensión/troncal (además de la barra de volumen total existente)",
+        "La función drawBarChart existente en exportService.js se reutiliza para todas las nuevas gráficas; se puede agregar drawMultiBarChart o drawStackedBar si se necesitan múltiples series",
+        "Los Excel generados incluyen una hoja 'Datos para gráfica' con los datos pre-agrupados por período o categoría (sin gráfica nativa) y un comentario en la primera celda indicando que puede usarse para crear gráficas en Excel/Google Sheets; se documenta en el spec como limitación conocida de ExcelJS streaming",
+        "Ninguna de las gráficas nuevas rompe el render del PDF (page break handling correcto, degradación a 'Sin datos' si no hay registros)",
+        "Tests: renderExecutiveBody, renderCallsBody y renderRankingBody en exportService producen el número esperado de secciones/gráficas (verificable contando llamadas a drawBarChart en mocks)"
+      ],
+      "sdd": false,
+      "status": "pending"
     }
   ]
 }
