@@ -13,3 +13,7 @@ frontend/dist/
 .env
 *.log
 CLAUDE.md
+AGENTS.md
+CHECKPOINTS.md
+./docs
+./.claude
