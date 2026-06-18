@@ -15,7 +15,7 @@ function resolveDispositionLocal(disposition, dst, dstchannel, lostDests) {
 }
 
 function buildWhereClause(filters, lostDests = []) {
-  const { from, to, trunk, origin, disposition } = filters;
+  const { from, to, trunk, origin, disposition, channels } = filters;
   const conditions = [];
   const params = [];
 
@@ -23,6 +23,12 @@ function buildWhereClause(filters, lostDests = []) {
   params.push(from + ' 00:00:00');
   conditions.push('calldate <= ?');
   params.push(to + ' 23:59:59');
+
+  if (channels && channels.length > 0) {
+    const orParts = channels.map(() => "channel LIKE CONCAT(?, '%')");
+    conditions.push(`(${orParts.join(' OR ')})`);
+    for (const ch of channels) params.push(ch);
+  }
 
   if (trunk) {
     conditions.push("channel LIKE CONCAT(?, '%')");

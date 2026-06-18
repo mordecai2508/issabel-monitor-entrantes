@@ -546,6 +546,67 @@
       ],
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 29,
+      "name": "historical_statcards_fix",
+      "title": "Histórico: corregir StatCards de 'Perdidas' y 'No Contestadas'",
+      "description": "El módulo Histórico (HistoricalView) no aplica la misma lógica que el Dashboard para las StatCards: (1) no existe la tarjeta 'Perdidas' (ivr_hangup); (2) la tarjeta 'No Contestadas' no usa el breakdown (ivr_hangup + queue_no_agent) sino el campo NO ANSWER crudo del CDR. Debe replicar exactamente la lógica y las tarjetas que usa Dashboard.jsx: separar 'Perdidas' (colgó en IVR, breakdown.ivr_hangup) de 'No Contestadas' (sin respuesta / cola sin agente, breakdown.no_answer + breakdown.queue_no_agent).",
+      "refs": [
+        "RF-04"
+      ],
+      "sdd": false,
+      "status": "done",
+      "note": "HistoricalView.jsx: extraído noAnswerBreakdown, añadida StatCard 'Perdidas' (ivr_hangup), 'No Contestadas' usa no_answer+queue_no_agent, subItems de horario si businessHours configurado. Grid ampliado a 6 columnas."
+    },
+    {
+      "id": 30,
+      "name": "historical_channel_table_filter",
+      "title": "Histórico: filtrar tabla 'Por canal' solo con canales definidos en el módulo Canales",
+      "description": "La tabla 'Por canal' en HistoricalView muestra todos los canales presentes en el CDR. Debe filtrar y mostrar únicamente los canales (troncales) que el administrador haya registrado en el módulo de Canales (channelAliases / trunks_config). Los canales no configurados deben omitirse de esta vista.",
+      "refs": [
+        "RF-04",
+        "RF-05"
+      ],
+      "sdd": false,
+      "status": "done",
+      "note": "HistoricalView.jsx: se deriva configuredChannelNames desde data.inbound.channels + data.outbound.channels (ya filtrados por passesFilter) y se filtra data.channels con ese conjunto. passesFilter(direction=null) retorna todos los canales del CDR; el filtro en frontend asegura que solo aparecen los canales configurados en el módulo de Canales."
+    },
+    {
+      "id": 31,
+      "name": "inbound_unanswered_statcard_fix",
+      "title": "Entrantes: aplicar lógica correcta en StatCard 'No Contestadas'",
+      "description": "La StatCard 'No Contestadas' en InboundView no aplica el mismo desglose que el Dashboard. Debe usar breakdown.no_answer + breakdown.queue_no_agent (llamadas que llegaron a cola pero nadie contestó), no el campo NO ANSWER crudo del CDR. Debe ser consistente con la lógica de resolveDisposition/#21/#24.",
+      "refs": [
+        "RF-02"
+      ],
+      "sdd": false,
+      "status": "done",
+      "note": "InboundView.jsx: añadido PhoneMissed a imports; calculados lost (ivr_hangup) y noAnswer (no_answer+queue_no_agent) desde breakdown; añadidas StatCards 'Perdidas' y 'No Contestadas'; grid ampliado a 4 columnas (2 en móvil, 4 en lg)."
+    },
+    {
+      "id": 32,
+      "name": "reports_disposition_extensions_layout_fix",
+      "title": "Reportes: corregir disposición, mezcla entrantes/salientes, extensiones y vista cortada",
+      "description": "El módulo Reportes tiene cuatro problemas: (1) no aplica la lógica de reclasificación (resolveDisposition/#21/#17) para Contestadas/No Contestadas — usa el valor raw del CDR; (2) mezcla llamadas entrantes y salientes en lugar de separarlas por canal configurado (channels.inbound / channels.outbound); (3) para el desglose de extensiones toma números de teléfono externos como extensiones — debe usar solo las extensiones internas definidas en el servidor (extensions_config, puramente numéricas); (4) la vista del módulo ReportsModule se ve cortada — revisar layout/CSS.",
+      "refs": [
+        "RF-07"
+      ],
+      "sdd": false,
+      "status": "done",
+      "note": "exportService.js: buildReportPdf cambiado a landscape. reports.js: separados inboundChannels/outboundChannels (antes ambos usaban inbound). cdrService.js: buildWhereClause acepta channels[] para filtrar por troncales entrantes. reportService.js: collectReportData usa inboundChannels en inbound/executive y outboundChannels en outbound. statsService.js: queryRankings(extension) filtra src REGEXP '^[0-9]{2,6}$' para excluir números de teléfono externos."
+    },
+    {
+      "id": 33,
+      "name": "analytics_unanswered_agents_trunks_fix",
+      "title": "Analytics: lógica No Contestadas, rankings de agentes y filtro de troncales por canales configurados",
+      "description": "El módulo HistoricalAnalytics tiene tres problemas: (1) no aplica la reclasificación de resolveDisposition para 'No Contestadas' — usa NO ANSWER crudo, a diferencia del Dashboard; (2) los rankings muestran extensiones arbitrarias (incluyendo números externos); deben mostrar únicamente agentes de call center (extensiones internas definidas en extensions_config, numéricas) con sus totales de llamadas contestadas, no contestadas y total; (3) el desglose por troncal debe mostrar solo las troncales definidas en el módulo de Canales (channelAliases / trunks_config), no todas las que aparecen en el CDR.",
+      "refs": [
+        "RF-04"
+      ],
+      "sdd": false,
+      "status": "done",
+      "note": "statsService.js: queryRankings('trunk') acepta configuredTrunks[] y añade WHERE channel LIKE para filtrar por canales configurados. stats.js: pasa configuredTrunks (inbound+outbound) al endpoint. reportService.js: pasa configuredTrunks a queryRankings para reportes de trunks y executive. HistoricalAnalytics.jsx: toggle 'Extensiones'→'Agentes', título dinámico. Lógica No Contestadas ya correcta (lostDests+reclassifyCaseExprs en queryHistorical/queryCompare/queryRankings). Filtro numérico ^[0-9]{2,6}$ aplicado en tarea #4."
     }
   ]
 }

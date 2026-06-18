@@ -91,11 +91,19 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
    * `ENT_LIWA`, `NET2_ENT_6076854970`, `VIRTUAL_TRUNK_SALIENTE`) are
    * discarded entirely.
    */
+  // Returns { promise, cleanup } so the caller can always remove the listener,
+  // including when a timeout wins the Promise.race (the listener would otherwise
+  // accumulate on every timeout, triggering MaxListenersExceededWarning).
   function queryPeers() {
-    return new Promise((resolve, reject) => {
-      const peers = [];
+    const peers = [];
+    let onManagerEvent;
 
-      function onManagerEvent(evt) {
+    function cleanup() {
+      if (onManagerEvent) ami.removeListener('managerevent', onManagerEvent);
+    }
+
+    const promise = new Promise((resolve, reject) => {
+      onManagerEvent = function (evt) {
         const eventName = String(evt.event || '').toLowerCase();
 
         if (eventName === 'peerentry') {
@@ -109,11 +117,7 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
           cleanup();
           resolve(peers);
         }
-      }
-
-      function cleanup() {
-        ami.removeListener('managerevent', onManagerEvent);
-      }
+      };
 
       ami.on('managerevent', onManagerEvent);
 
@@ -126,6 +130,8 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
         // arrive as `PeerEntry`/`PeerlistComplete` events handled above.
       });
     });
+
+    return { promise, cleanup };
   }
 
   async function check() {
@@ -134,10 +140,11 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
     }
 
     let timeoutHandle;
+    const { promise: peersPromise, cleanup } = queryPeers();
 
     try {
       const peers = await Promise.race([
-        queryPeers(),
+        peersPromise,
         new Promise((_resolve, reject) => {
           timeoutHandle = setTimeout(() => reject(new Error('Timeout al consultar extensiones AMI')), timeoutMs);
         }),
@@ -157,6 +164,7 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
       // is left untouched.
     } finally {
       clearTimeout(timeoutHandle);
+      cleanup(); // always remove the managerevent listener, even on timeout
     }
 
     return getStatus();

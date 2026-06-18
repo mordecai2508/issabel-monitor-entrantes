@@ -168,7 +168,7 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
 }
 
 async function queryRankings(pool, from, to, type, limit, opts = {}) {
-  const { lostDests = [] } = opts;
+  const { lostDests = [], configuredTrunks = [] } = opts;
   const safeLimit = Math.min(Number(limit) || 10, 50);
   const fromTs = from + ' 00:00:00';
   const toTs   = to   + ' 23:59:59';
@@ -188,13 +188,24 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
        FROM cdr
        WHERE calldate >= ? AND calldate <= ?
          AND src IS NOT NULL AND src != ''
+         AND src REGEXP '^[0-9]{2,6}$'
        GROUP BY src
        ORDER BY total DESC
        LIMIT ?`,
       [...extraParams, fromTs, toTs, safeLimit]
     );
   } else {
-    // trunk
+    // trunk — filter to configured channels when provided
+    const trunkConditions = ['calldate >= ?', 'calldate <= ?',
+      'channel IS NOT NULL', "channel != ''", "channel NOT LIKE 'Local/%'"];
+    const trunkParams = [...extraParams, fromTs, toTs];
+
+    if (configuredTrunks.length > 0) {
+      const orParts = configuredTrunks.map(() => "channel LIKE CONCAT(?, '%')");
+      trunkConditions.push(`(${orParts.join(' OR ')})`);
+      trunkParams.push(...configuredTrunks);
+    }
+
     [rows] = await pool.query(
       `SELECT LEFT(channel,
                 CHAR_LENGTH(channel)
@@ -208,13 +219,11 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
               SUM(disposition = 'FAILED') AS failed,
               ROUND(AVG(duration), 2)     AS avg_duration
        FROM cdr
-       WHERE calldate >= ? AND calldate <= ?
-         AND channel IS NOT NULL AND channel != ''
-         AND channel NOT LIKE 'Local/%'
+       WHERE ${trunkConditions.join(' AND ')}
        GROUP BY name
        ORDER BY total DESC
        LIMIT ?`,
-      [...extraParams, fromTs, toTs, safeLimit]
+      [...trunkParams, safeLimit]
     );
   }
 

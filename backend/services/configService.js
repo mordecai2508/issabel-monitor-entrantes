@@ -259,6 +259,33 @@ function getTrunkOverrides(db, trunks) {
   return map;
 }
 
+/**
+ * Read the business_hours config as a parsed object, or null if not set.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @returns {{ days: number[], start: string, end: string }|null}
+ */
+function getBusinessHours(db) {
+  const raw = getConfigValue(db, 'business_hours', null);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+/**
+ * Persist or clear the business_hours config.
+ * Pass null to remove it.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {{ days: number[], start: string, end: string }|null} value
+ */
+function setBusinessHours(db, value) {
+  if (value === null) {
+    db.prepare('DELETE FROM system_config WHERE key = ?').run('business_hours');
+  } else {
+    setConfigValue(db, 'business_hours', JSON.stringify(value));
+  }
+}
+
 module.exports = {
   getConfigValue,
   setConfigValue,
@@ -271,4 +298,6 @@ module.exports = {
   getExtensionOverrides,
   upsertTrunkOverride,
   getTrunkOverrides,
+  getBusinessHours,
+  setBusinessHours,
 };

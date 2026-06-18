@@ -193,6 +193,7 @@ describe('R1/R3 - GET /api/admin/config (defaults)', () => {
       language: 'es',
       themeColors: { primary: '#3b82f6', accent: '#1e3a5f' },
       logoUrl: null,
+      businessHours: null,
     });
   });
 });

@@ -347,7 +347,9 @@ function RankingsSection() {
 
   return (
     <section className="bg-slate-800/50 rounded-xl p-5 space-y-4">
-      <h2 className="text-base font-semibold text-slate-100">Rankings</h2>
+      <h2 className="text-base font-semibold text-slate-100">
+        {rankType === 'extension' ? 'Ranking de agentes' : 'Ranking de troncales'}
+      </h2>
 
       <div className="flex flex-wrap items-end gap-4">
         {/* Toggle type */}
@@ -362,7 +364,7 @@ function RankingsSection() {
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
             >
-              {t === 'extension' ? 'Extensiones' : 'Troncales'}
+              {t === 'extension' ? 'Agentes' : 'Troncales'}
             </button>
           ))}
         </div>

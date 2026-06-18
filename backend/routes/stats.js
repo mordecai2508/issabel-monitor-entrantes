@@ -12,8 +12,12 @@ function isValidDate(str) {
 }
 
 module.exports = function statsRouter(pool, config, requireAuth) {
-  const router    = express.Router();
-  const lostDests = config.lostDestinations || [];
+  const router           = express.Router();
+  const lostDests        = config.lostDestinations || [];
+  const configuredTrunks = [
+    ...(config.channels?.inbound  || []),
+    ...(config.channels?.outbound || []),
+  ];
 
   // GET /api/stats/historical
   router.get('/stats/historical', requireAuth, async (req, res) => {
@@ -107,7 +111,7 @@ module.exports = function statsRouter(pool, config, requireAuth) {
     }
 
     try {
-      const result = await statsService.queryRankings(pool, from, to, type, limit || 10, { lostDests });
+      const result = await statsService.queryRankings(pool, from, to, type, limit || 10, { lostDests, configuredTrunks });
       return res.json({ ok: true, data: result });
     } catch (err) {
       console.error('[stats] GET /stats/rankings:', err.message);

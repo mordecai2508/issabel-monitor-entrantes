@@ -578,7 +578,7 @@ function buildReportPdf(res, { type, from, to, branding, data, filenameBase }) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.pdf"`);
 
-  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
   doc.pipe(res);
 
   drawReportHeader(doc, { type, from, to, branding });

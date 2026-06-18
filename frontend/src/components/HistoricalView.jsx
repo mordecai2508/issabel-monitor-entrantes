@@ -42,9 +42,37 @@ export default function HistoricalView() {
 
   const disp           = data?.stats?.dispositions;
   const total          = data?.stats?.total ?? 0;
-  const channels       = data?.channels ?? [];
   const hourly         = data?.hourly   ?? [];
   const channelAliases = data?.channelAliases ?? {};
+
+  // Solo mostrar canales definidos en el módulo de Canales (inbound u outbound configurados).
+  // passesFilter(direction=null) devuelve todos los canales del CDR incluyendo no configurados;
+  // usamos inbound.channels + outbound.channels (ya filtrados) como fuente de verdad.
+  const configuredChannelNames = new Set([
+    ...(data?.inbound?.channels ?? []).map(c => c.channel),
+    ...(data?.outbound?.channels ?? []).map(c => c.channel),
+  ]);
+  const channels = (data?.channels ?? []).filter(ch => configuredChannelNames.has(ch.channel));
+
+  const answered = disp?.ANSWERED?.count ?? 0;
+  const busy     = disp?.BUSY?.count     ?? 0;
+  const failed   = disp?.FAILED?.count   ?? 0;
+
+  const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown ?? {};
+  const lost    = noAnswerBreakdown.ivr_hangup ?? 0;
+  const noAnswer = (noAnswerBreakdown.no_answer ?? 0) + (noAnswerBreakdown.queue_no_agent ?? 0);
+
+  const answeredPct  = disp?.ANSWERED?.pct ?? 0;
+  const busyPct      = disp?.BUSY?.pct     ?? 0;
+  const failedPct    = disp?.FAILED?.pct   ?? 0;
+  const lostPct    = total > 0 ? Math.round((lost    / total) * 1000) / 10 : 0;
+  const noAnswerPct = total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
+
+  const businessHours = data?.businessHours ?? null;
+  const perdidasSubItems = businessHours ? [
+    { label: 'En horario',       value: noAnswerBreakdown.ivr_hangup_business ?? 0, colorClass: 'text-red-400' },
+    { label: 'Fuera de horario', value: noAnswerBreakdown.ivr_hangup_offhours ?? 0, colorClass: 'text-slate-400' },
+  ] : null;
 
   function exportCSV() {
     if (!channels.length) return;
@@ -132,16 +160,19 @@ export default function HistoricalView() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatCard label="Total"         value={total}                        icon={Phone}         color="blue" />
-            <StatCard label="Contestadas"   value={disp?.ANSWERED?.count}        icon={PhoneCall}     color="green"
-              sub="del total" pct={disp?.ANSWERED?.pct} />
-            <StatCard label="No contestadas" value={disp?.['NO ANSWER']?.count}  icon={PhoneMissed}   color="amber"
-              sub="del total" pct={disp?.['NO ANSWER']?.pct} />
-            <StatCard label="Ocupado"       value={disp?.BUSY?.count}            icon={PhoneOff}      color="red"
-              sub="del total" pct={disp?.BUSY?.pct} />
-            <StatCard label="Fallidas"      value={disp?.FAILED?.count}          icon={AlertTriangle} color="slate"
-              sub="del total" pct={disp?.FAILED?.pct} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatCard label="Total"          value={total}     icon={Phone}         color="blue" />
+            <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}     color="green"
+              sub="del total" pct={answeredPct} />
+            <StatCard label="Perdidas"       value={lost}      icon={PhoneMissed}   color="red"
+              sub="del total" pct={lostPct}
+              subItems={perdidasSubItems} />
+            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed}   color="amber"
+              sub="del total" pct={noAnswerPct} />
+            <StatCard label="Ocupado"        value={busy}      icon={PhoneOff}      color="red"
+              sub="del total" pct={busyPct} />
+            <StatCard label="Fallidas"       value={failed}    icon={AlertTriangle} color="slate"
+              sub="del total" pct={failedPct} />
           </div>
 
           {/* Gráficas */}

@@ -161,6 +161,13 @@ export default function Dashboard() {
   const noAnswerPct =
     total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
 
+  // #25: desglose de "Perdidas" por horario de atención (solo si está configurado).
+  const businessHours = data?.businessHours ?? null;
+  const perdidasSubItems = businessHours ? [
+    { label: 'En horario',       value: noAnswerBreakdown.ivr_hangup_business ?? 0, colorClass: 'text-red-400' },
+    { label: 'Fuera de horario', value: noAnswerBreakdown.ivr_hangup_offhours ?? 0, colorClass: 'text-slate-400' },
+  ] : null;
+
   const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
   const outboundTotal = data?.outbound?.stats?.total ?? 0;
   const inboundPct  = total > 0 ? Math.round((inboundTotal  / total) * 1000) / 10 : 0;
@@ -201,13 +208,18 @@ export default function Dashboard() {
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total llamadas" value={total}     icon={Phone}      color="blue" />
-            <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}  color="green"
-              sub="del total" pct={answeredPct} />
-            <StatCard label="Perdidas"       value={lost}      icon={PhoneMissed} color="red"
-              sub="colgó en IVR, del total" pct={lostPct} />
-            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed} color="amber"
-              sub="sin respuesta, del total" pct={noAnswerPct} />
+            <StatCard label="Total llamadas" value={total} icon={Phone} color="blue"
+              hint="Cuenta todas las llamadas que pasaron por el sistema hoy, sin importar cómo terminaron. Es el punto de partida para ver el volumen del día." />
+            <StatCard label="Contestadas" value={answered} icon={PhoneCall} color="green"
+              sub="del total" pct={answeredPct}
+              hint="Llamadas en las que un agente atendió y hubo conversación real. Es el indicador principal de que los agentes están respondiendo." />
+            <StatCard label="Perdidas" value={lost} icon={PhoneMissed} color="red"
+              sub="del total" pct={lostPct}
+              subItems={perdidasSubItems}
+              hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien. Cuantas menos haya, mejor." />
+            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
+              sub="del total" pct={noAnswerPct}
+              hint="Llamadas que llegaron a la cola de espera pero ningún agente las tomó a tiempo y el cliente colgó la llamada. El cliente esperó y no fue atendido." />
           </div>
 
           {/* Estado de extensiones (AMI) — tarjeta combinada (#23) */}
@@ -218,9 +230,11 @@ export default function Dashboard() {
           {/* Ocupado + Fallidas + resumen de duración/canales */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Ocupado" value={busy} icon={PhoneOff} color="amber"
-              sub="del total" pct={busyPct} />
+              sub="del total" pct={busyPct}
+              hint="El sistema rechazó estas llamadas porque no había líneas o agentes disponibles en ese momento. El cliente recibió señal de ocupado." />
             <StatCard label="Fallidas" value={failed} icon={AlertTriangle} color="slate"
-              sub="del total" pct={failedPct} />
+              sub="del total" pct={failedPct}
+              hint="Llamadas que no pudieron conectarse por un error técnico en la línea o en el sistema telefónico. Si hay muchas, puede ser señal de un problema." />
             <div className="card col-span-2 lg:col-span-2 flex flex-wrap items-center gap-8">
               <div>
                 <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
@@ -242,9 +256,11 @@ export default function Dashboard() {
           {/* Desglose Entrantes / Salientes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <StatCard label="Llamadas entrantes" value={inboundTotal} icon={PhoneIncoming} color="blue"
-              sub="del total" pct={inboundPct} />
+              sub="del total" pct={inboundPct}
+              hint="Total de llamadas que llegaron desde el exterior hacia el call center hoy, incluyendo las contestadas, las perdidas y las no contestadas." />
             <StatCard label="Llamadas salientes" value={outboundTotal} icon={PhoneOutgoing} color="blue"
-              sub="del total" pct={outboundPct} />
+              sub="del total" pct={outboundPct}
+              hint="Total de llamadas que los agentes realizaron hacia el exterior hoy." />
           </div>
 
           {/* Colas de entrada (sin repetir Perdidas que ya aparece arriba) */}

@@ -67,14 +67,110 @@ function Select({ children, ...props }) {
   );
 }
 
+// ── Business Hours ────────────────────────────────────────────────────────────
+
+const WEEK_DAYS = [
+  { label: 'Lu', value: 1 },
+  { label: 'Ma', value: 2 },
+  { label: 'Mi', value: 3 },
+  { label: 'Ju', value: 4 },
+  { label: 'Vi', value: 5 },
+  { label: 'Sa', value: 6 },
+  { label: 'Do', value: 0 },
+];
+
+const DEFAULT_BUSINESS_HOURS = { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' };
+
+function BusinessHoursSection({ value, onChange }) {
+  const enabled = value !== null && value !== undefined;
+  const days  = value?.days  ?? DEFAULT_BUSINESS_HOURS.days;
+  const start = value?.start ?? DEFAULT_BUSINESS_HOURS.start;
+  const end   = value?.end   ?? DEFAULT_BUSINESS_HOURS.end;
+
+  function toggleEnabled(e) {
+    onChange(e.target.checked ? { ...DEFAULT_BUSINESS_HOURS } : null);
+  }
+
+  function toggleDay(dayValue) {
+    const newDays = days.includes(dayValue)
+      ? days.filter(d => d !== dayValue)
+      : [...days, dayValue];
+    onChange({ days: newDays, start, end });
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <input
+          type="checkbox"
+          id="bh-enabled"
+          checked={enabled}
+          onChange={toggleEnabled}
+          className="w-4 h-4 rounded accent-blue-500"
+        />
+        <label htmlFor="bh-enabled" className="text-sm font-medium text-slate-200 cursor-pointer">
+          Horario de atención
+        </label>
+      </div>
+      {enabled && (
+        <div className="ml-6 space-y-4">
+          <div>
+            <p className="text-xs text-slate-400 mb-2">Días laborales</p>
+            <div className="flex gap-2 flex-wrap">
+              {WEEK_DAYS.map(d => (
+                <button
+                  type="button"
+                  key={d.value}
+                  onClick={() => toggleDay(d.value)}
+                  className={`w-8 h-8 rounded-full text-xs font-semibold transition-colors ${
+                    days.includes(d.value)
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-end gap-4">
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Desde</p>
+              <input
+                type="time"
+                value={start}
+                onChange={e => onChange({ days, start: e.target.value, end })}
+                className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <p className="text-xs text-slate-400 mb-1">Hasta</p>
+              <input
+                type="time"
+                value={end}
+                onChange={e => onChange({ days, start, end: e.target.value })}
+                className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">
+            Las llamadas "Perdidas" del dashboard se dividirán entre "En horario" y "Fuera de horario".
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Tab: General ──────────────────────────────────────────────────────────────
 
 function GeneralTab({ config, onSaved, onError }) {
-  const [companyName, setCompanyName] = useState(config.companyName || '');
-  const [timezone, setTimezone]       = useState(config.timezone || '');
-  const [language, setLanguage]       = useState(config.language || 'es');
-  const [saving, setSaving]           = useState(false);
-  const [localError, setLocalError]   = useState('');
+  const [companyName, setCompanyName]     = useState(config.companyName || '');
+  const [timezone, setTimezone]           = useState(config.timezone || '');
+  const [language, setLanguage]           = useState(config.language || 'es');
+  const [businessHours, setBusinessHours] = useState(config.businessHours ?? null);
+  const [saving, setSaving]               = useState(false);
+  const [localError, setLocalError]       = useState('');
 
   function validate() {
     if (!companyName.trim()) return 'El nombre de la empresa no puede estar vacío';
@@ -97,6 +193,7 @@ function GeneralTab({ config, onSaved, onError }) {
         companyName: companyName.trim(),
         timezone,
         language,
+        businessHours,
       });
       onSaved(res.data);
     } catch (err) {
@@ -129,6 +226,7 @@ function GeneralTab({ config, onSaved, onError }) {
           <option value="en">English</option>
         </Select>
       </Field>
+      <BusinessHoursSection value={businessHours} onChange={setBusinessHours} />
       <button
         type="submit"
         disabled={saving}

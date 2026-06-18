@@ -36,14 +36,16 @@ function summarizeByDisposition(rows) {
  * @param {{ allowedChannels: string[]|null, extractChannel: Function }} helpers
  * @returns {Promise<object>}
  */
-async function collectReportData(pool, type, from, to, { allowedChannels, extractChannel, lostDests = [] }) {
+async function collectReportData(pool, type, from, to, { inboundChannels = [], outboundChannels = [], extractChannel, lostDests = [] }) {
+  const configuredTrunks = [...inboundChannels, ...outboundChannels];
+
   if (type === 'executive') {
-    const opts = { lostDests };
+    const opts = { lostDests, configuredTrunks };
     const [overall, trend, inboundRows, outboundRows, topExtensions, topTrunks] = await Promise.all([
       statsService.queryHistorical(pool, 'custom', from, to, opts),
       statsService.queryHistorical(pool, 'day', from, to, opts),
-      cdrService.queryInboundExport(pool, { from, to }, extractChannel, lostDests),
-      cdrService.queryOutboundExport(pool, { from, to }, allowedChannels, extractChannel, lostDests),
+      cdrService.queryInboundExport(pool, { from, to, channels: inboundChannels }, extractChannel, lostDests),
+      cdrService.queryOutboundExport(pool, { from, to }, outboundChannels, extractChannel, lostDests),
       statsService.queryRankings(pool, from, to, 'extension', 5, opts),
       statsService.queryRankings(pool, from, to, 'trunk', 5, opts),
     ]);
@@ -66,7 +68,7 @@ async function collectReportData(pool, type, from, to, { allowedChannels, extrac
   }
 
   if (type === 'inbound') {
-    const rows = await cdrService.queryInboundExport(pool, { from, to }, extractChannel, lostDests);
+    const rows = await cdrService.queryInboundExport(pool, { from, to, channels: inboundChannels }, extractChannel, lostDests);
     return {
       type,
       from,
@@ -78,7 +80,7 @@ async function collectReportData(pool, type, from, to, { allowedChannels, extrac
   }
 
   if (type === 'outbound') {
-    const rows = await cdrService.queryOutboundExport(pool, { from, to }, allowedChannels, extractChannel, lostDests);
+    const rows = await cdrService.queryOutboundExport(pool, { from, to }, outboundChannels, extractChannel, lostDests);
     return {
       type,
       from,
@@ -95,7 +97,7 @@ async function collectReportData(pool, type, from, to, { allowedChannels, extrac
   }
 
   // trunks
-  const rankings = await statsService.queryRankings(pool, from, to, 'trunk', 10, { lostDests });
+  const rankings = await statsService.queryRankings(pool, from, to, 'trunk', 10, { lostDests, configuredTrunks });
   return { type, from, to, rankings: rankings.rankings };
 }
 

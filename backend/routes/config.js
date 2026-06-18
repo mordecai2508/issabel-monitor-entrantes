@@ -103,6 +103,7 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
       language: general.language,
       themeColors: general.themeColors,
       logoUrl,
+      businessHours: configService.getBusinessHours(db),
     };
   }
 
@@ -118,14 +119,38 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
 
   // ── PATCH /admin/config ──────────────────────────────────────────
   router.patch('/admin/config', requireAdmin, (req, res) => {
-    const { companyName, timezone, language, themeColors } = req.body || {};
+    const { companyName, timezone, language, themeColors, businessHours } = req.body || {};
 
-    if (companyName === undefined && timezone === undefined && language === undefined && themeColors === undefined) {
+    if (companyName === undefined && timezone === undefined && language === undefined && themeColors === undefined && businessHours === undefined) {
       return res.status(400).json({ ok: false, error: 'Debe proporcionar al menos un campo a actualizar' });
     }
 
+    // Validate businessHours when provided (null clears it)
+    if (businessHours !== undefined && businessHours !== null) {
+      if (typeof businessHours !== 'object' || Array.isArray(businessHours)) {
+        return res.status(400).json({ ok: false, error: 'El campo businessHours debe ser un objeto o null' });
+      }
+      if (!Array.isArray(businessHours.days)) {
+        return res.status(400).json({ ok: false, error: 'businessHours.days debe ser un arreglo' });
+      }
+      if (businessHours.days.some(d => !Number.isInteger(d) || d < 0 || d > 6)) {
+        return res.status(400).json({ ok: false, error: 'businessHours.days debe contener enteros entre 0 (domingo) y 6 (sábado)' });
+      }
+      if (typeof businessHours.start !== 'string' || !/^\d{2}:\d{2}$/.test(businessHours.start)) {
+        return res.status(400).json({ ok: false, error: 'businessHours.start debe tener el formato HH:MM' });
+      }
+      if (typeof businessHours.end !== 'string' || !/^\d{2}:\d{2}$/.test(businessHours.end)) {
+        return res.status(400).json({ ok: false, error: 'businessHours.end debe tener el formato HH:MM' });
+      }
+    }
+
     try {
-      configService.updateGeneralConfig(db, { companyName, timezone, language, themeColors });
+      if (companyName !== undefined || timezone !== undefined || language !== undefined || themeColors !== undefined) {
+        configService.updateGeneralConfig(db, { companyName, timezone, language, themeColors });
+      }
+      if (businessHours !== undefined) {
+        configService.setBusinessHours(db, businessHours);
+      }
       res.json({ ok: true, data: buildConfigResponse() });
     } catch (err) {
       if (err.status === 400) {

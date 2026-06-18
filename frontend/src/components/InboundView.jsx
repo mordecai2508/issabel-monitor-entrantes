@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Phone, PhoneCall, Wifi, WifiOff, RefreshCw, Users, PhoneIncoming } from 'lucide-react';
+import { Phone, PhoneCall, PhoneMissed, Wifi, WifiOff, RefreshCw, Users, PhoneIncoming } from 'lucide-react';
 import { StatCard } from './StatCard';
 import { DispositionChart } from './DispositionChart';
 import { HourlyChart } from './HourlyChart';
@@ -70,6 +70,15 @@ export default function InboundView() {
   const queues         = data?.queues      ?? [];
   const channelAliases = data?.channelAliases ?? {};
 
+  const answered = disp?.ANSWERED?.count ?? 0;
+  const answeredPct = disp?.ANSWERED?.pct ?? 0;
+
+  const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown ?? {};
+  const lost     = noAnswerBreakdown.ivr_hangup ?? 0;
+  const noAnswer = (noAnswerBreakdown.no_answer ?? 0) + (noAnswerBreakdown.queue_no_agent ?? 0);
+  const lostPct     = total > 0 ? Math.round((lost     / total) * 1000) / 10 : 0;
+  const noAnswerPct = total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
+
   return (
     <div className="p-6 space-y-6 min-h-screen">
 
@@ -105,10 +114,14 @@ export default function InboundView() {
 
       {data && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard label="Total entrantes" value={total}                 icon={Phone}     color="blue" />
-            <StatCard label="Contestadas"     value={disp?.ANSWERED?.count} icon={PhoneCall} color="green"
-              sub="del total" pct={disp?.ANSWERED?.pct} />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Total entrantes" value={total}    icon={Phone}       color="blue" />
+            <StatCard label="Contestadas"     value={answered} icon={PhoneCall}   color="green"
+              sub="del total" pct={answeredPct} />
+            <StatCard label="Perdidas"        value={lost}     icon={PhoneMissed} color="red"
+              sub="del total" pct={lostPct} />
+            <StatCard label="No Contestadas"  value={noAnswer} icon={PhoneMissed} color="amber"
+              sub="del total" pct={noAnswerPct} />
           </div>
 
           <div className="card flex flex-wrap items-center gap-8">

@@ -2,8 +2,9 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 
 const COLORS = {
   'Contestadas': '#22c55e',
+  'Perdidas':    '#ef4444',
   'No Contest.': '#f59e0b',
-  'Ocupado':     '#ef4444',
+  'Ocupado':     '#f97316',
   'Fallidas':    '#6b7280',
 };
 
@@ -21,9 +22,14 @@ function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent
 }
 
 export function DispositionChart({ dispositions }) {
+  const breakdown = dispositions?.['NO ANSWER']?.breakdown ?? {};
+  const lost      = breakdown.ivr_hangup ?? 0;
+  const noAnswer  = (breakdown.no_answer ?? 0) + (breakdown.queue_no_agent ?? 0);
+
   const data = [
     { name: 'Contestadas', value: dispositions?.ANSWERED?.count ?? 0 },
-    { name: 'No Contest.', value: dispositions?.['NO ANSWER']?.count ?? 0 },
+    { name: 'Perdidas',    value: lost },
+    { name: 'No Contest.', value: noAnswer },
     { name: 'Ocupado',     value: dispositions?.BUSY?.count ?? 0 },
     { name: 'Fallidas',    value: dispositions?.FAILED?.count ?? 0 },
   ].filter(d => d.value > 0);
