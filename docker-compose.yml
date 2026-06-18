@@ -6,4 +6,12 @@ services:
     ports:
       - "4000:4000"
     volumes:
-      - ./backend/config.json:/app/backend/config.json
+      # config.json contiene credenciales — debe existir en el host antes de `docker compose up`
+      - ./backend/config.json:/app/backend/config.json:ro
+      # Persistencia de datos entre reinicios y recreaciones del contenedor
+      - monitor-db:/app/backend/db
+      - monitor-uploads:/app/backend/uploads
+
+volumes:
+  monitor-db:
+  monitor-uploads:
