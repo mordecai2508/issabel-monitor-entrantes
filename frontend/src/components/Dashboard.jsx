@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Phone, PhoneOff, PhoneMissed, AlertTriangle, PhoneCall,
+  Phone, PhoneMissed, PhoneCall,
   PhoneIncoming, PhoneOutgoing,
   Wifi, WifiOff, RefreshCw, Users,
 } from 'lucide-react';
@@ -135,13 +135,9 @@ export default function Dashboard() {
   const queues         = data?.queues   ?? [];
   const channelAliases = data?.channelAliases ?? {};
 
-  const answered = disp?.ANSWERED?.count   ?? 0;
-  const busy     = disp?.BUSY?.count       ?? 0;
-  const failed   = disp?.FAILED?.count     ?? 0;
+  const answered = disp?.ANSWERED?.count ?? 0;
 
-  const answeredPct = disp?.ANSWERED?.pct     ?? 0;
-  const busyPct     = disp?.BUSY?.pct          ?? 0;
-  const failedPct   = disp?.FAILED?.pct        ?? 0;
+  const answeredPct = disp?.ANSWERED?.pct ?? 0;
 
   // R10/R11: breakdown puede ser undefined (payload legacy) o tener claves
   // faltantes — default por clave individual, no all-or-nothing.
@@ -227,29 +223,21 @@ export default function Dashboard() {
             <ExtensionsStatusCard data={extensionsData} />
           </div>
 
-          {/* Ocupado + Fallidas + resumen de duración/canales */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Ocupado" value={busy} icon={PhoneOff} color="amber"
-              sub="del total" pct={busyPct}
-              hint="El sistema rechazó estas llamadas porque no había líneas o agentes disponibles en ese momento. El cliente recibió señal de ocupado." />
-            <StatCard label="Fallidas" value={failed} icon={AlertTriangle} color="slate"
-              sub="del total" pct={failedPct}
-              hint="Llamadas que no pudieron conectarse por un error técnico en la línea o en el sistema telefónico. Si hay muchas, puede ser señal de un problema." />
-            <div className="card col-span-2 lg:col-span-2 flex flex-wrap items-center gap-8">
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.avg_billsec ?? 0)}</p>
-              </div>
-              <div className="h-10 w-px bg-slate-700" />
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Tiempo total en llamadas</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.total_billsec ?? 0)}</p>
-              </div>
-              <div className="h-10 w-px bg-slate-700" />
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Canales activos hoy</p>
-                <p className="text-2xl font-bold text-slate-100 mt-1">{channels.length}</p>
-              </div>
+          {/* Resumen de duración/canales */}
+          <div className="card flex flex-wrap items-center gap-8">
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.avg_billsec ?? 0)}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-700" />
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Tiempo total en llamadas</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">{fmtDuration(disp?.ANSWERED?.total_billsec ?? 0)}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-700" />
+            <div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Canales activos hoy</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">{channels.length}</p>
             </div>
           </div>
 

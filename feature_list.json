@@ -597,6 +597,52 @@
       "note": "exportService.js: buildReportPdf cambiado a landscape. reports.js: separados inboundChannels/outboundChannels (antes ambos usaban inbound). cdrService.js: buildWhereClause acepta channels[] para filtrar por troncales entrantes. reportService.js: collectReportData usa inboundChannels en inbound/executive y outboundChannels en outbound. statsService.js: queryRankings(extension) filtra src REGEXP '^[0-9]{2,6}$' para excluir números de teléfono externos."
     },
     {
+      "id": 34,
+      "name": "hide_failed_busy_statcards",
+      "title": "Ocultar tarjetas 'Fallidas' y 'Ocupado' en Dashboard y Módulo Histórico",
+      "description": "Las StatCards 'Fallidas' (FAILED) y 'Ocupado' (BUSY) actualmente se muestran en el Dashboard principal y en HistoricalView. El negocio no opera con esas categorías como KPIs relevantes — todos los flujos de llamadas de Issabel terminan en ANSWERED o NO ANSWER (reclasificado). Estas tarjetas se deben eliminar del render en ambas vistas sin eliminar los datos del payload del backend (el campo dispositions.FAILED / dispositions.BUSY sigue existiendo para no romper compatibilidad).",
+      "refs": ["RF-01", "RF-04"],
+      "sdd": false,
+      "status": "done",
+      "note": "Dashboard.jsx: eliminadas StatCards 'Ocupado' y 'Fallidas' y sus variables (busy, failed, busyPct, failedPct); la tarjeta de duración/canales que compartía grid con ellas pasa a ser un card independiente full-width. HistoricalView.jsx: eliminadas las mismas StatCards; grid ajustado de 6 a 4 columnas (lg:grid-cols-4). Imports PhoneOff y AlertTriangle eliminados en ambos archivos. Payload backend sin cambios."
+    },
+    {
+      "id": 35,
+      "name": "trunk_aliases_in_reports_and_search",
+      "title": "Mostrar alias de troncales en reportes y búsqueda de entrantes",
+      "description": "En los reportes PDF/Excel y en la tabla de búsqueda de llamadas entrantes (InboundTable, /inbound/search) se muestra el nombre técnico de la troncal del CDR (p.ej. SIP/ENT_LIWA, SIP/NET2_ENT_6076854970) en lugar del alias legible configurado por el administrador en el módulo de Canales (channelAliases, p.ej. 'Entrante Principal'). Esta feature aplica el lookup de alias en ambos contextos: (1) backend: reportService resuelve el alias antes de incluir el nombre de troncal en el contenido PDF/Excel; (2) frontend: InboundTable aplica channelAliases (disponibles vía SSE o /api/admin/config) al renderizar la columna 'Troncal' de la tabla de resultados.",
+      "refs": ["RF-02", "RF-05", "RF-07"],
+      "sdd": false,
+      "status": "done",
+      "note": "InboundTable.jsx: aliasMap construido desde trunks (ya cargados en mount via api.adminChannels); celda channel usa aliasMap[row.channel] || row.channel. inbound.js: en /calls/inbound/export se aplica config.channelAliases a row.channel (displayRows) y a filters.trunk (displayFilters para encabezado PDF); se pasan displayRows/displayFilters a toXlsx/toPdf. reports.js: applyAliasesToReportData() transforma data post-collectReportData: inbound→rows[].channel, outbound→rows[].dstchannel, executive→topTrunks[].name, trunks→rankings[].name. channelAliases leído de config.channelAliases al arrancar el router.",
+      "acceptance": [
+        "InboundTable.jsx resuelve el alias para la columna 'Troncal': si channelAliases[rawChannel] existe, muestra el alias; si no, muestra el nombre técnico sin prefijo 'SIP/' (comportamiento actual de fallback)",
+        "InboundTable obtiene channelAliases desde el payload SSE (data.channelAliases, ya disponible en /api/events) o mediante una llamada a /api/admin/config al montar el componente; no se agrega un nuevo endpoint",
+        "reportService.js (y/o exportService.js) resuelve el alias de troncal usando configService.getChannelAliases() (o equivalente) antes de incluir nombres de canal en tablas y encabezados de PDF/Excel; si no existe alias, usa el nombre técnico como fallback",
+        "Los reportes de tipo 'entrantes', 'salientes', 'troncales' y 'ejecutivo' que listan canales/troncales muestran el alias en lugar del nombre raw del CDR",
+        "El filtro de troncal en InboundTable (dropdown) muestra también el alias, no el nombre técnico",
+        "No se modifican los endpoints de backend ni el schema de base de datos"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "inbound_perdidas_business_hours",
+      "title": "Módulo Entrantes: eliminar tarjeta 'Perdidas' duplicada y agregar desglose por horario de atención",
+      "description": "En InboundView aparecen dos representaciones de 'Perdidas': la StatCard añadida en #31 (con valor ivr_hangup + pct) y una tarjeta o sección adicional que muestra el mismo dato de otra forma. Esta feature elimina la representación duplicada, deja únicamente la StatCard con porcentaje, y añade el desglose por horario de atención (En horario / Fuera de horario) replicando exactamente lo que ya hace el Dashboard con breakdown.ivr_hangup_business e ivr_hangup_offhours (#25). Los datos ya están disponibles en el payload SSE cuando businessHours está configurado; no se requieren cambios en backend.",
+      "refs": ["RF-02"],
+      "sdd": false,
+      "status": "done",
+      "note": "InboundView.jsx: (1) QueueCard __lost__ eliminada del render — queues.filter(q => q.queue !== '__lost__') igual que Dashboard, era la causa del duplicado; (2) perdidasSubItems calculado desde data.businessHours y breakdown.ivr_hangup_business/ivr_hangup_offhours; (3) prop subItems={perdidasSubItems} añadida a StatCard 'Perdidas'. Sin cambios de backend.",
+      "acceptance": [
+        "InboundView.jsx muestra una única StatCard 'Perdidas' con valor ivr_hangup, pct sobre el total y, cuando data.businessHours está configurado, dos sub-ítems vía prop subItems: [{ label: 'En horario', value: ivr_hangup_business }, { label: 'Fuera de horario', value: ivr_hangup_offhours }]",
+        "Se elimina cualquier segunda tarjeta o sección que muestre 'Perdidas' de forma redundante en InboundView (tarjeta duplicada, QueueCard __lost__ si es esa la causa, o sección extra)",
+        "Cuando businessHours no está configurado (data.businessHours === null), la StatCard 'Perdidas' muestra solo el total sin sub-ítems, igual al comportamiento actual",
+        "Los campos ivr_hangup_business e ivr_hangup_offhours se leen de disp?.['NO ANSWER']?.breakdown, que ya los incluye desde #25 cuando businessHours está configurado",
+        "No se requieren cambios en backend ni en el payload de SSE",
+        "El grid de StatCards se ajusta correctamente al número de tarjetas resultantes tras eliminar el duplicado"
+      ]
+    },
+    {
       "id": 33,
       "name": "analytics_unanswered_agents_trunks_fix",
       "title": "Analytics: lógica No Contestadas, rankings de agentes y filtro de troncales por canales configurados",

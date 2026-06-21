@@ -36,6 +36,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
   const router = express.Router();
   const outboundChannels = (config.channels && config.channels.outbound) || [];
   const lostDests        = config.lostDestinations || [];
+  const channelAliases   = config.channelAliases   || {};
 
   // ── GET /api/calls/outbound ────────────────────────────────────────
   router.get('/calls/outbound', requireAuth, async (req, res) => {
@@ -141,10 +142,19 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
       const truncated    = rows.length >= cdrService.MAX_EXPORT_ROWS;
       const filenameBase = `salientes_${filters.from}_${filters.to}`;
 
+      const displayRows = rows.map(r => ({
+        ...r,
+        dstchannel: channelAliases[r.dstchannel] || r.dstchannel,
+      }));
+      const displayFilters = {
+        ...filters,
+        trunk: filters.trunk ? (channelAliases[filters.trunk] || filters.trunk) : null,
+      };
+
       if (format === 'xlsx') {
-        await exportService.toXlsx(rows, res, filenameBase, truncated, OUTBOUND_XLSX_HEADERS, 'Salientes');
+        await exportService.toXlsx(displayRows, res, filenameBase, truncated, OUTBOUND_XLSX_HEADERS, 'Salientes');
       } else {
-        exportService.toPdf(rows, res, filenameBase, filters, truncated, 'Llamadas Salientes — Búsqueda', OUTBOUND_PDF_HEADERS, OUTBOUND_ROW_KEYS);
+        exportService.toPdf(displayRows, res, filenameBase, displayFilters, truncated, 'Llamadas Salientes — Búsqueda', OUTBOUND_PDF_HEADERS, OUTBOUND_ROW_KEYS);
       }
     } catch (err) {
       console.error('[outbound] GET /calls/outbound/export:', err.message);

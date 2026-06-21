@@ -34,6 +34,30 @@ module.exports = function reportsRouter(pool, config, db, requireAuth, extractCh
   const inboundChannels  = (config.channels && config.channels.inbound)  || [];
   const outboundChannels = (config.channels && config.channels.outbound) || [];
   const lostDests        = config.lostDestinations || [];
+  const channelAliases   = config.channelAliases   || {};
+
+  function applyAlias(name) {
+    return channelAliases[name] || name;
+  }
+
+  function applyAliasesToReportData(type, data) {
+    if (type === 'inbound' && data.rows) {
+      return { ...data, rows: data.rows.map(r => ({ ...r, channel: applyAlias(r.channel) })) };
+    }
+    if (type === 'outbound' && data.rows) {
+      return { ...data, rows: data.rows.map(r => ({ ...r, dstchannel: applyAlias(r.dstchannel) })) };
+    }
+    if (type === 'executive') {
+      return {
+        ...data,
+        topTrunks: (data.topTrunks || []).map(r => ({ ...r, name: applyAlias(r.name) })),
+      };
+    }
+    if (type === 'trunks' && data.rankings) {
+      return { ...data, rankings: data.rankings.map(r => ({ ...r, name: applyAlias(r.name) })) };
+    }
+    return data;
+  }
 
   function getAppName() {
     return config.app?.name || 'Call Monitor';
@@ -83,7 +107,8 @@ module.exports = function reportsRouter(pool, config, db, requireAuth, extractCh
       }, REPORT_TIMEOUT_MS);
 
       try {
-        const data = await reportService.collectReportData(pool, type, from, to, { inboundChannels, outboundChannels, extractChannel, lostDests });
+        const rawData = await reportService.collectReportData(pool, type, from, to, { inboundChannels, outboundChannels, extractChannel, lostDests });
+        const data = applyAliasesToReportData(type, rawData);
 
         clearTimeout(timeoutId);
         if (timedOut) return; // R9 — response already sent

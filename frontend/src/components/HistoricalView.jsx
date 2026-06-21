@@ -5,7 +5,7 @@ import { DispositionChart } from './DispositionChart';
 import { HourlyChart } from './HourlyChart';
 import { ChannelTable } from './ChannelTable';
 import { StatCard } from './StatCard';
-import { Phone, PhoneCall, PhoneMissed, PhoneOff, AlertTriangle } from 'lucide-react';
+import { Phone, PhoneCall, PhoneMissed } from 'lucide-react';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -55,17 +55,13 @@ export default function HistoricalView() {
   const channels = (data?.channels ?? []).filter(ch => configuredChannelNames.has(ch.channel));
 
   const answered = disp?.ANSWERED?.count ?? 0;
-  const busy     = disp?.BUSY?.count     ?? 0;
-  const failed   = disp?.FAILED?.count   ?? 0;
 
   const noAnswerBreakdown = disp?.['NO ANSWER']?.breakdown ?? {};
   const lost    = noAnswerBreakdown.ivr_hangup ?? 0;
   const noAnswer = (noAnswerBreakdown.no_answer ?? 0) + (noAnswerBreakdown.queue_no_agent ?? 0);
 
-  const answeredPct  = disp?.ANSWERED?.pct ?? 0;
-  const busyPct      = disp?.BUSY?.pct     ?? 0;
-  const failedPct    = disp?.FAILED?.pct   ?? 0;
-  const lostPct    = total > 0 ? Math.round((lost    / total) * 1000) / 10 : 0;
+  const answeredPct = disp?.ANSWERED?.pct ?? 0;
+  const lostPct     = total > 0 ? Math.round((lost    / total) * 1000) / 10 : 0;
   const noAnswerPct = total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
 
   const businessHours = data?.businessHours ?? null;
@@ -78,7 +74,7 @@ export default function HistoricalView() {
     if (!channels.length) return;
     const header = 'Canal,Total,Contestadas,No contestadas,Ocupado,Fallidas,Tiempo (s)\n';
     const rows = channels.map(ch =>
-      `${ch.channel},${ch.total},${ch.ANSWERED},${ch['NO ANSWER']},${ch.BUSY},${ch.FAILED},${ch.total_billsec}`
+      `${channelAliases[ch.channel] || ch.channel},${ch.total},${ch.ANSWERED},${ch['NO ANSWER']},${ch.BUSY},${ch.FAILED},${ch.total_billsec}`
     ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -160,19 +156,15 @@ export default function HistoricalView() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            <StatCard label="Total"          value={total}     icon={Phone}         color="blue" />
-            <StatCard label="Contestadas"    value={answered}  icon={PhoneCall}     color="green"
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Total"          value={total}    icon={Phone}       color="blue" />
+            <StatCard label="Contestadas"    value={answered} icon={PhoneCall}   color="green"
               sub="del total" pct={answeredPct} />
-            <StatCard label="Perdidas"       value={lost}      icon={PhoneMissed}   color="red"
+            <StatCard label="Perdidas"       value={lost}     icon={PhoneMissed} color="red"
               sub="del total" pct={lostPct}
               subItems={perdidasSubItems} />
-            <StatCard label="No Contestadas" value={noAnswer}  icon={PhoneMissed}   color="amber"
+            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
               sub="del total" pct={noAnswerPct} />
-            <StatCard label="Ocupado"        value={busy}      icon={PhoneOff}      color="red"
-              sub="del total" pct={busyPct} />
-            <StatCard label="Fallidas"       value={failed}    icon={AlertTriangle} color="slate"
-              sub="del total" pct={failedPct} />
           </div>
 
           {/* Gráficas */}

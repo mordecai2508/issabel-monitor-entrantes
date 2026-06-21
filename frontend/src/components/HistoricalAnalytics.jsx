@@ -414,10 +414,10 @@ function RankingsSection() {
                 <tr className="border-b border-slate-700">
                   <th className="text-left py-2 px-3 text-slate-400 font-medium">#</th>
                   <th className="text-left py-2 px-3 text-slate-400 font-medium">Nombre</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Total</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Contestadas</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">No cont.</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Dur. media (s)</th>
+                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Total de llamadas</th>
+                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas Contestadas</th>
+                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas No cont.</th>
+                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Dur. media de minutos(s)</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,7 +428,7 @@ function RankingsSection() {
                     <td className="py-2 px-3 text-right text-slate-200">{row.total}</td>
                     <td className="py-2 px-3 text-right text-green-400">{row.answered}</td>
                     <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>
-                    <td className="py-2 px-3 text-right text-slate-300">{row.avg_duration}</td>
+                    <td className="py-2 px-3 text-right text-slate-300">{row.avg_duration/60}</td>
                   </tr>
                 ))}
               </tbody>

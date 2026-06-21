@@ -133,10 +133,20 @@ module.exports = function inboundRouter(pool, config, requireAuth, extractChanne
       const truncated    = rows.length >= cdrService.MAX_EXPORT_ROWS;
       const filenameBase = `entrantes_${filters.from}_${filters.to}`;
 
+      const channelAliases = config.channelAliases || {};
+      const displayRows = rows.map(r => ({
+        ...r,
+        channel: channelAliases[r.channel] || r.channel,
+      }));
+      const displayFilters = {
+        ...filters,
+        trunk: filters.trunk ? (channelAliases[filters.trunk] || filters.trunk) : null,
+      };
+
       if (format === 'xlsx') {
-        await exportService.toXlsx(rows, res, filenameBase, truncated);
+        await exportService.toXlsx(displayRows, res, filenameBase, truncated);
       } else {
-        exportService.toPdf(rows, res, filenameBase, filters, truncated);
+        exportService.toPdf(displayRows, res, filenameBase, displayFilters, truncated);
       }
     } catch (err) {
       console.error('[inbound] GET /calls/inbound/export:', err.message);

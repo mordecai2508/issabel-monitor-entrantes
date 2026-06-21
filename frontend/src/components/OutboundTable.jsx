@@ -309,7 +309,9 @@ export default function OutboundTable() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedRows.map((row, idx) => (
+                  {(() => {
+                    const aliasMap = Object.fromEntries(trunks.filter(t => t.alias).map(t => [t.channel, t.alias]));
+                    return sortedRows.map((row, idx) => (
                     <tr
                       key={idx}
                       className="border-b border-slate-800 hover:bg-slate-800/60 transition-colors"
@@ -317,7 +319,7 @@ export default function OutboundTable() {
                       <td className="px-4 py-2.5 whitespace-nowrap text-slate-300">{row.calldate}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">{row.src}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">{row.dst}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-slate-400">{row.dstchannel}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-slate-400">{aliasMap[row.dstchannel] || row.dstchannel}</td>
                       <td className="px-4 py-2.5 text-right">{row.duration}</td>
                       <td className="px-4 py-2.5 text-right">{row.billsec}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
@@ -326,7 +328,8 @@ export default function OutboundTable() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  })()}
                 </tbody>
               </table>
             </div>

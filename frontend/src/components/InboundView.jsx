@@ -79,6 +79,12 @@ export default function InboundView() {
   const lostPct     = total > 0 ? Math.round((lost     / total) * 1000) / 10 : 0;
   const noAnswerPct = total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
 
+  const businessHours = data?.businessHours ?? null;
+  const perdidasSubItems = businessHours ? [
+    { label: 'En horario',       value: noAnswerBreakdown.ivr_hangup_business ?? 0, colorClass: 'text-red-400' },
+    { label: 'Fuera de horario', value: noAnswerBreakdown.ivr_hangup_offhours ?? 0, colorClass: 'text-slate-400' },
+  ] : null;
+
   return (
     <div className="p-6 space-y-6 min-h-screen">
 
@@ -119,7 +125,7 @@ export default function InboundView() {
             <StatCard label="Contestadas"     value={answered} icon={PhoneCall}   color="green"
               sub="del total" pct={answeredPct} />
             <StatCard label="Perdidas"        value={lost}     icon={PhoneMissed} color="red"
-              sub="del total" pct={lostPct} />
+              sub="del total" pct={lostPct} subItems={perdidasSubItems} />
             <StatCard label="No Contestadas"  value={noAnswer} icon={PhoneMissed} color="amber"
               sub="del total" pct={noAnswerPct} />
           </div>
@@ -136,9 +142,9 @@ export default function InboundView() {
             </div>
           </div>
 
-          {queues.length > 0 && (
+          {queues.filter(q => q.queue !== '__lost__').length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {queues.map(q => <QueueCard key={q.queue} queue={q} />)}
+              {queues.filter(q => q.queue !== '__lost__').map(q => <QueueCard key={q.queue} queue={q} />)}
             </div>
           )}
 

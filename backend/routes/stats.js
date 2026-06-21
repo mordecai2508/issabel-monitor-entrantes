@@ -14,6 +14,7 @@ function isValidDate(str) {
 module.exports = function statsRouter(pool, config, requireAuth) {
   const router           = express.Router();
   const lostDests        = config.lostDestinations || [];
+  const channelAliases   = config.channelAliases   || {};
   const configuredTrunks = [
     ...(config.channels?.inbound  || []),
     ...(config.channels?.outbound || []),
@@ -112,6 +113,9 @@ module.exports = function statsRouter(pool, config, requireAuth) {
 
     try {
       const result = await statsService.queryRankings(pool, from, to, type, limit || 10, { lostDests, configuredTrunks });
+      if (type === 'trunk') {
+        result.rankings = result.rankings.map(r => ({ ...r, name: channelAliases[r.name] || r.name }));
+      }
       return res.json({ ok: true, data: result });
     } catch (err) {
       console.error('[stats] GET /stats/rankings:', err.message);
