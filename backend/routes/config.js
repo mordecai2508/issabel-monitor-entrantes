@@ -275,14 +275,12 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
     }
   });
 
-  // ── PATCH /admin/trunks/:trunk ────────────────────────────────────
-  router.patch('/admin/trunks/:trunk', requireAdmin, (req, res) => {
-    const trunk = decodeURIComponent(req.params.trunk);
-    if (!trunk.trim()) {
-      return res.status(400).json({ ok: false, error: 'El troncal no puede estar vacío' });
+  // ── PATCH /admin/trunks ───────────────────────────────────────────
+  router.patch('/admin/trunks', requireAdmin, (req, res) => {
+    const { trunk, hidden } = req.body || {};
+    if (typeof trunk !== 'string' || !trunk.trim()) {
+      return res.status(400).json({ ok: false, error: 'El campo trunk es requerido' });
     }
-
-    const { hidden } = req.body || {};
     if (typeof hidden !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'El campo hidden es requerido y debe ser booleano' });
     }

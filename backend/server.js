@@ -658,9 +658,10 @@ async function startServer() {
     res.json({ ok: true, channels: [...inbound, ...outbound] });
   });
 
-  app.put('/api/admin/channels/:channel', requireAdmin, (req, res) => {
-    const channel = decodeURIComponent(req.params.channel);
-    const { alias } = req.body || {};
+  app.put('/api/admin/channels', requireAdmin, (req, res) => {
+    const { channel, alias } = req.body || {};
+    if (typeof channel !== 'string' || !channel.trim())
+      return res.status(400).json({ ok: false, error: 'El campo channel es requerido' });
     if (typeof alias !== 'string')
       return res.status(400).json({ ok: false, error: 'El campo alias es requerido' });
     if (!config.channels.inbound.includes(channel) && !config.channels.outbound.includes(channel))

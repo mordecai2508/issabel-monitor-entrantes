@@ -21,7 +21,7 @@ export const api = {
   adminUsers:    ()                   => req('GET',  '/api/admin/users'),
   adminChannels: ()                   => req('GET',  '/api/admin/channels'),
   updateChannelAlias: (channel, alias) =>
-    req('PUT', `/api/admin/channels/${encodeURIComponent(channel)}`, { alias }),
+    req('PUT', '/api/admin/channels', { channel, alias }),
   publicConfig:  ()                   => req('GET',  '/api/config/public'),
   updateAppName: (name)               => req('PUT',  '/api/admin/app', { name }),
   // User management
@@ -69,7 +69,7 @@ export const api = {
   adminExtensions:   ()                  => req('GET',   '/api/admin/extensions'),
   updateExtension:   (ext, data)         => req('PATCH', `/api/admin/extensions/${encodeURIComponent(ext)}`, data),
   adminTrunks:       ()                  => req('GET',   '/api/admin/trunks'),
-  updateTrunkVisibility: (trunk, hidden) => req('PATCH', `/api/admin/trunks/${encodeURIComponent(trunk)}`, { hidden }),
+  updateTrunkVisibility: (trunk, hidden) => req('PATCH', '/api/admin/trunks', { trunk, hidden }),
   // PBX health monitoring
   pbxHealth: ()                          => req('GET',  '/api/pbx/health'),
   pbxSync:   ()                          => req('POST', '/api/pbx/sync'),
