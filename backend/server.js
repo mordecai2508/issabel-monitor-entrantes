@@ -467,7 +467,7 @@ async function startServer() {
   const createMailService = require('./services/mailService');
   const mailService = createMailService(config.smtp);
   const createAlertService = require('./services/alertService');
-  const alertService = createAlertService(pool, config, db, broadcast, pbxHealthService, mailService);
+  const alertService = createAlertService(pool, config, db, broadcast, pbxHealthService, mailService, amiExtensionsService);
   alertService.start();
   app.use('/api', require('./routes/alerts')(pool, config, db, requireAuth, requireAdmin, alertService));
 

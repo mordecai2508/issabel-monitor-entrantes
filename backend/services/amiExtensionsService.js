@@ -18,6 +18,10 @@ const EMPTY_STATE = Object.freeze({
   available: false,
 });
 
+// Trunk peers are non-numeric SIP peers (e.g. ENT_LIWA, NET2_TRUNK).
+// status: 'up' when AMI reports OK/LAGGED, 'down' otherwise.
+const EMPTY_TRUNK_STATE = Object.freeze({ trunks: [], available: false });
+
 /**
  * Factory for the AMI extensions status service (feature #18 —
  * dashboard_extensions_status — corrected for chan_sip by #19 —
@@ -56,6 +60,7 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
   );
 
   let state = { ...EMPTY_STATE };
+  let trunkState = { ...EMPTY_TRUNK_STATE };
   let hasSucceededOnce = false;
   let ami = null;
 
@@ -69,6 +74,28 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
 
   function getStatus() {
     return { ...state, extensions: state.extensions.map(e => ({ ...e })) };
+  }
+
+  /**
+   * Returns a snapshot of non-numeric SIP peers (trunks).
+   * Each entry: { trunk: string, status: 'up'|'down', rawStatus: string }
+   * `available: false` when AMI has never returned a successful result.
+   */
+  function getTrunksStatus() {
+    return { available: trunkState.available, trunks: trunkState.trunks.map(t => ({ ...t })) };
+  }
+
+  /**
+   * Returns the status for a single trunk peer name (the part after SIP/).
+   * Returns null when AMI hasn't succeeded yet or the trunk isn't known.
+   * @param {string} peerName
+   */
+  function getTrunkStatus(peerName) {
+    return trunkState.trunks.find(t => t.trunk === peerName) || null;
+  }
+
+  function isConfigured() {
+    return configured;
   }
 
   /**
@@ -95,7 +122,8 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
   // including when a timeout wins the Promise.race (the listener would otherwise
   // accumulate on every timeout, triggering MaxListenersExceededWarning).
   function queryPeers() {
-    const peers = [];
+    const extensions = [];
+    const trunks = [];
     let onManagerEvent;
 
     function cleanup() {
@@ -108,14 +136,20 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
 
         if (eventName === 'peerentry') {
           const objectName = evt.objectname || '';
-          if (!EXTENSION_NAME_RE.test(objectName)) return; // trunk — excluded (R23)
+          const rawStatus  = evt.status || '';
+          const peerStatus = rawStatus.toUpperCase();
+          const isUp = peerStatus.startsWith('OK') || peerStatus.startsWith('LAGGED');
 
-          const peerStatus = (evt.status || '').toUpperCase();
-          const status = peerStatus.startsWith('OK') || peerStatus.startsWith('LAGGED') ? 'active' : 'inactive';
-          peers.push({ extension: objectName, status });
+          if (EXTENSION_NAME_RE.test(objectName)) {
+            // Numeric name → extension (R23)
+            extensions.push({ extension: objectName, status: isUp ? 'active' : 'inactive' });
+          } else {
+            // Non-numeric name → trunk
+            trunks.push({ trunk: objectName, status: isUp ? 'up' : 'down', rawStatus });
+          }
         } else if (eventName === 'peerlistcomplete') {
           cleanup();
-          resolve(peers);
+          resolve({ extensions, trunks });
         }
       };
 
@@ -143,25 +177,26 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
     const { promise: peersPromise, cleanup } = queryPeers();
 
     try {
-      const peers = await Promise.race([
+      const { extensions, trunks } = await Promise.race([
         peersPromise,
         new Promise((_resolve, reject) => {
           timeoutHandle = setTimeout(() => reject(new Error('Timeout al consultar extensiones AMI')), timeoutMs);
         }),
       ]);
 
-      const total  = peers.length;
-      const active = peers.filter(e => e.status === 'active').length;
+      const total  = extensions.length;
+      const active = extensions.filter(e => e.status === 'active').length;
 
-      state = { total, active, extensions: peers, available: true };
+      state      = { total, active, extensions, available: true };
+      trunkState = { trunks, available: true };
       hasSucceededOnce = true;
     } catch (err) {
       console.error('[ami] SIPpeers failed:', err.message);
       if (!hasSucceededOnce) {
-        state = { ...EMPTY_STATE };
+        state      = { ...EMPTY_STATE };
+        trunkState = { ...EMPTY_TRUNK_STATE };
       }
-      // else: retain the previously cached successful result (R10) — `state`
-      // is left untouched.
+      // else: retain the previously cached successful result (R10)
     } finally {
       clearTimeout(timeoutHandle);
       cleanup(); // always remove the managerevent listener, even on timeout
@@ -184,5 +219,5 @@ module.exports = function createAmiExtensionsService(amiConfig, options = {}) {
     };
   }
 
-  return { check, getStatus, start };
+  return { check, getStatus, getTrunksStatus, getTrunkStatus, isConfigured, start };
 };

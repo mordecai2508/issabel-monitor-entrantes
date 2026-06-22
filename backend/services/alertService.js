@@ -119,7 +119,7 @@ function validateRuleFields({ type, threshold, notify_email }, { requireType, ef
  *   start: (intervalMs?: number) => () => void,
  * }}
  */
-module.exports = function createAlertService(pool, config, db, broadcast, pbxHealthService, mailService, options = {}) {
+module.exports = function createAlertService(pool, config, db, broadcast, pbxHealthService, mailService, amiExtensionsService, options = {}) {
   const windowMinutes = options.windowMinutes || LOST_SPIKE_WINDOW_MINUTES;
 
   // ── CRUD de reglas (R1-R9) ───────────────────────────────────────
@@ -356,13 +356,69 @@ module.exports = function createAlertService(pool, config, db, broadcast, pbxHea
   }
 
   /**
-   * Evaluate a `trunk_down` rule (R20-R22, design.md §3.2/§6.6).
+   * Evaluate a `trunk_down` rule.
+   *
+   * When AMI is configured and has returned at least one result, uses the
+   * live SIP registration status (`up`/`down`) of each configured inbound
+   * channel.  A trunk whose peer name is not yet in the AMI snapshot is
+   * skipped for that cycle (avoids false positives on first boot).
+   *
+   * Auto-resolution: when all trunks are `up` and there is an unresolved
+   * alert for this rule, it is automatically resolved.
+   *
+   * Fallback: when AMI is not configured, the original CDR-based heuristic
+   * is used (no activity in CDR for `threshold` minutes → alert, no
+   * auto-resolution).
+   *
    * @param {object} rule
    */
   async function evaluateTrunkDown(rule) {
     const channels = (config.channels && config.channels.inbound) || [];
-    if (channels.length === 0) return; // sin troncales configuradas, no se evalúa
+    if (channels.length === 0) return;
 
+    const useAmi = amiExtensionsService && amiExtensionsService.isConfigured();
+
+    if (useAmi) {
+      const { available, trunks } = amiExtensionsService.getTrunksStatus();
+
+      // Skip evaluation if AMI has not yet returned a successful snapshot.
+      if (!available) return;
+
+      let downChannel = null;
+      let downRawStatus = null;
+
+      for (const channel of channels) {
+        // Strip protocol prefix (SIP/ or PJSIP/) to get the AMI peer name.
+        const peerName = channel.replace(/^(?:SIP|PJSIP)\//i, '');
+        const trunkInfo = trunks.find(t => t.trunk === peerName);
+
+        // Peer not in AMI snapshot — skip (unknown state, avoid false positive).
+        if (!trunkInfo) continue;
+
+        if (trunkInfo.status === 'down') {
+          downChannel    = channel;
+          downRawStatus  = trunkInfo.rawStatus || 'sin respuesta';
+          break;
+        }
+      }
+
+      if (downChannel) {
+        const description = `La troncal "${downChannel}" está fuera de servicio (estado AMI: ${downRawStatus})`;
+        await createAlert(rule, description);
+      } else {
+        // All known trunks are up — auto-resolve any open alert for this rule.
+        const unresolved = db.prepare(
+          'SELECT id FROM alerts WHERE rule_id = ? AND resolved = 0 LIMIT 1'
+        ).get(rule.id);
+        if (unresolved) {
+          db.prepare('UPDATE alerts SET resolved = 1, resolved_at = ? WHERE id = ?')
+            .run(new Date().toISOString(), unresolved.id);
+        }
+      }
+      return;
+    }
+
+    // ── CDR-based fallback (AMI not configured) ──────────────────────
     const now = new Date();
     const thresholdMs = rule.threshold * 60_000;
 
@@ -377,14 +433,15 @@ module.exports = function createAlertService(pool, config, db, broadcast, pbxHea
 
       const lastActivity = rows?.[0]?.last_activity;
       const lastActivityDate = lastActivity ? new Date(lastActivity) : null;
-
       const isDown = !lastActivityDate || (now.getTime() - lastActivityDate.getTime()) >= thresholdMs;
 
       if (isDown) {
-        const lastActivityLabel = lastActivityDate ? lastActivityDate.toLocaleString() : 'sin actividad registrada';
+        const lastActivityLabel = lastActivityDate
+          ? lastActivityDate.toLocaleString()
+          : 'sin actividad registrada';
         const description = `No se detectó actividad CDR para el canal "${channel}" en los últimos ${rule.threshold} minutos (última actividad: ${lastActivityLabel})`;
         await createAlert(rule, description);
-        return; // una alerta por ciclo es suficiente (R15 evita duplicados de todos modos)
+        return;
       }
     }
   }
