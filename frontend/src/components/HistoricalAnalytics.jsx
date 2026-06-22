@@ -206,12 +206,12 @@ function TrendSection() {
 // ── Sección Comparativa ───────────────────────────────────────────────────────
 
 const KPI_LABELS = [
-  { key: 'total',        label: 'Total' },
-  { key: 'answered',     label: 'Contestadas' },
-  { key: 'no_answer',    label: 'No contestadas' },
+  { key: 'total',        label: 'Total de llamadas' },
+  { key: 'answered',     label: 'Llamadas Contestadas' },
+  { key: 'no_answer',    label: 'Llamadas No contestadas' },
   { key: 'busy',         label: 'Ocupado' },
   { key: 'failed',       label: 'Fallidas' },
-  { key: 'avg_duration', label: 'Duración media (s)' },
+  { key: 'avg_duration', label: 'Duración media de minutos (s)' },
 ];
 
 function VariationCell({ value }) {
@@ -428,7 +428,7 @@ function RankingsSection() {
                     <td className="py-2 px-3 text-right text-slate-200">{row.total}</td>
                     <td className="py-2 px-3 text-right text-green-400">{row.answered}</td>
                     <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>
-                    <td className="py-2 px-3 text-right text-slate-300">{row.avg_duration/60}</td>
+                    <td className="py-2 px-3 text-right text-slate-300">{row.avg_duration}</td>
                   </tr>
                 ))}
               </tbody>

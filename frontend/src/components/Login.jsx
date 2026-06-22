@@ -82,7 +82,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-slate-600 text-xs mt-6">
-          WSoluciones Call Monitor v1.0
+          WSoluciones Call Monitor v2.0
         </p>
       </div>
     </div>
