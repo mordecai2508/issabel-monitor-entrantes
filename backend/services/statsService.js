@@ -177,8 +177,13 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
   let rows;
 
   if (type === 'extension') {
+    // Agents are identified by dstchannel: SIP/<ext>-<hex> or Agent/<ext>.
+    // We extract the numeric extension and group by it to get per-agent stats.
     [rows] = await pool.query(
-      `SELECT src AS name,
+      `SELECT CASE
+                WHEN dstchannel LIKE 'Agent/%' THEN SUBSTRING(dstchannel, 7)
+                WHEN dstchannel LIKE 'SIP/%'   THEN SUBSTRING_INDEX(SUBSTRING(dstchannel, 5), '-', 1)
+              END AS name,
               COUNT(*)                    AS total,
               ${answeredExpr}             AS answered,
               ${noAnswerExpr}             AS no_answer,
@@ -187,12 +192,11 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
               ROUND(AVG(duration), 2)     AS avg_duration
        FROM cdr
        WHERE calldate >= ? AND calldate <= ?
-         AND src IS NOT NULL AND src != ''
-         AND src REGEXP '^[0-9]{2,6}$'
-       GROUP BY src
+         AND dstchannel REGEXP ?
+       GROUP BY name
        ORDER BY total DESC
        LIMIT ?`,
-      [...extraParams, fromTs, toTs, safeLimit]
+      [...extraParams, fromTs, toTs, AGENT_DSTCHANNEL_MYSQL, safeLimit]
     );
   } else {
     // trunk — filter to configured channels when provided

@@ -1,6 +1,7 @@
 'use strict';
-const express      = require('express');
-const statsService = require('../services/statsService');
+const express       = require('express');
+const statsService  = require('../services/statsService');
+const configService = require('../services/configService');
 
 const VALID_PERIODS  = ['day', 'week', 'month', 'year', 'custom'];
 const DATE_RE        = /^\d{4}-\d{2}-\d{2}$/;
@@ -11,10 +12,9 @@ function isValidDate(str) {
   return !isNaN(d.getTime());
 }
 
-module.exports = function statsRouter(pool, config, requireAuth) {
+module.exports = function statsRouter(pool, config, requireAuth, db) {
   const router           = express.Router();
   const lostDests        = config.lostDestinations || [];
-  const channelAliases   = config.channelAliases   || {};
   const configuredTrunks = [
     ...(config.channels?.inbound  || []),
     ...(config.channels?.outbound || []),
@@ -113,9 +113,27 @@ module.exports = function statsRouter(pool, config, requireAuth) {
 
     try {
       const result = await statsService.queryRankings(pool, from, to, type, limit || 10, { lostDests, configuredTrunks });
+
       if (type === 'trunk') {
+        // Read channel aliases from SQLite at request time (not snapshot at startup).
+        const channelAliases = db ? configService.getChannelAliases(db) : {};
         result.rankings = result.rankings.map(r => ({ ...r, name: channelAliases[r.name] || r.name }));
       }
+
+      if (type === 'extension' && db) {
+        const extNames  = result.rankings.map(r => r.name);
+        const overrides = configService.getExtensionOverrides(db, extNames);
+        result.rankings = result.rankings
+          .filter(r => {
+            const ov = overrides.get(r.name);
+            return !ov || !ov.hidden;
+          })
+          .map(r => {
+            const ov = overrides.get(r.name);
+            return { ...r, name: (ov && ov.displayName) || r.name };
+          });
+      }
+
       return res.json({ ok: true, data: result });
     } catch (err) {
       console.error('[stats] GET /stats/rankings:', err.message);
