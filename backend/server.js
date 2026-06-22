@@ -424,6 +424,16 @@ async function startServer() {
 
   // ── SQLite local DB ───────────────────────────────────────────
   const db = initDb(config);
+
+  // Migrar channelAliases de config.json (solo lectura en Docker) → SQLite
+  if (config.channelAliases && typeof config.channelAliases === 'object') {
+    const existing = configService.getChannelAliases(db);
+    if (Object.keys(existing).length === 0 && Object.keys(config.channelAliases).length > 0) {
+      configService.setConfigValue(db, 'channel_aliases', JSON.stringify(config.channelAliases));
+      console.log('[CONFIG] channelAliases migrados de config.json a SQLite.');
+    }
+  }
+
   app.use('/api', require('./routes/users')(pool, config, db, requireAuth, requireAdmin));
   app.use('/api', inboundRouter(pool, config, requireAuth, extractChannel));
   app.use('/api', outboundRouter(pool, config, requireAuth, extractChannel));
@@ -515,7 +525,7 @@ async function startServer() {
   const configQueues     = config.queues         || [];
   const lostDests        = config.lostDestinations || ['s', 'hang', 'hangup'];
 
-  function getAliases()  { return config.channelAliases || {}; }
+  function getAliases()  { return configService.getChannelAliases(db); }
   function getAppName()  { return config.app?.name || 'Call Monitor'; }
 
   async function fetchData(from, to) {
@@ -667,13 +677,7 @@ async function startServer() {
     if (!config.channels.inbound.includes(channel) && !config.channels.outbound.includes(channel))
       return res.status(404).json({ ok: false, error: 'Canal no encontrado' });
 
-    if (!config.channelAliases) config.channelAliases = {};
-    if (alias.trim()) {
-      config.channelAliases[channel] = alias.trim();
-    } else {
-      delete config.channelAliases[channel];
-    }
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    configService.setChannelAlias(db, channel, alias);
     res.json({ ok: true, channel, alias: alias.trim() });
   });
 

@@ -286,6 +286,36 @@ function setBusinessHours(db, value) {
   }
 }
 
+/**
+ * Read all channel aliases stored in SQLite.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @returns {Record<string, string>}
+ */
+function getChannelAliases(db) {
+  const raw = getConfigValue(db, 'channel_aliases', null);
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
+/**
+ * Set or clear a single channel alias in SQLite.
+ * Passing an empty/blank alias removes the entry.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} channel
+ * @param {string} alias
+ */
+function setChannelAlias(db, channel, alias) {
+  const aliases = getChannelAliases(db);
+  if (alias && alias.trim()) {
+    aliases[channel] = alias.trim();
+  } else {
+    delete aliases[channel];
+  }
+  setConfigValue(db, 'channel_aliases', JSON.stringify(aliases));
+}
+
 module.exports = {
   getConfigValue,
   setConfigValue,
@@ -300,4 +330,6 @@ module.exports = {
   getTrunkOverrides,
   getBusinessHours,
   setBusinessHours,
+  getChannelAliases,
+  setChannelAlias,
 };
