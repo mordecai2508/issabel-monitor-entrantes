@@ -205,11 +205,11 @@ function TrendSection() {
 
 // ── Sección Comparativa ───────────────────────────────────────────────────────
 
+// #37: 'busy' eliminado de KPI_LABELS porque BUSY se reclasifica a NO ANSWER en el backend
 const KPI_LABELS = [
   { key: 'total',        label: 'Total de llamadas' },
   { key: 'answered',     label: 'Llamadas Contestadas' },
   { key: 'no_answer',    label: 'Llamadas No contestadas' },
-  { key: 'busy',         label: 'Ocupado' },
   { key: 'failed',       label: 'Fallidas' },
   { key: 'avg_duration', label: 'Duración media de minutos (s)' },
 ];

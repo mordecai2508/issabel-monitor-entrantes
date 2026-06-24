@@ -19,8 +19,10 @@ function summarizeByDisposition(rows) {
   const summary = { total: rows.length, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
   for (const row of rows) {
     const d = (row.disposition || '').toUpperCase();
-    if (DISPOSITIONS.includes(d)) {
-      summary[d] += 1;
+    // #37: normalización defensiva — BUSY se suma a NO ANSWER
+    const effectiveD = d === 'BUSY' ? 'NO ANSWER' : d;
+    if (DISPOSITIONS.includes(effectiveD)) {
+      summary[effectiveD] += 1;
     }
   }
   return summary;

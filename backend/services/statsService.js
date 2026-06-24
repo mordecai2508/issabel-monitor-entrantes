@@ -17,7 +17,8 @@ function reclassifyCaseExprs(lostDests) {
   if (!lostDests || lostDests.length === 0) {
     return {
       answeredExpr: "SUM(disposition = 'ANSWERED')",
-      noAnswerExpr: "SUM(disposition = 'NO ANSWER')",
+      // #37: BUSY se acumula en no_answer
+      noAnswerExpr: "SUM(disposition = 'NO ANSWER' OR UPPER(disposition) = 'BUSY')",
       extraParams:  [],
     };
   }
@@ -27,8 +28,10 @@ function reclassifyCaseExprs(lostDests) {
     `SUM(CASE WHEN dst IN (${lp}) THEN 0 ` +
     `WHEN UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?) THEN 0 ` +
     `WHEN UPPER(disposition) = 'ANSWERED' THEN 1 ELSE 0 END)`;
+  // #37: BUSY se acumula en no_answer (antes de lostDests para no interferir con otras reglas)
   const noAnswerExpr =
-    `SUM(CASE WHEN dst IN (${lp}) THEN 1 ` +
+    `SUM(CASE WHEN UPPER(disposition) = 'BUSY' THEN 1 ` +
+    `WHEN dst IN (${lp}) THEN 1 ` +
     `WHEN UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?) THEN 1 ` +
     `WHEN UPPER(disposition) = 'NO ANSWER' THEN 1 ELSE 0 END)`;
   return {

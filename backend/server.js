@@ -116,6 +116,9 @@ function resolveDisposition(row, lostDests) {
   let targetKey = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d) ? d : null;
   if (!targetKey) return null;
 
+  // #37: BUSY se trata como NO ANSWER
+  if (targetKey === 'BUSY') targetKey = 'NO ANSWER';
+
   // #17: dst en lostDestinations reclasifica cualquier disposición hacia 'NO ANSWER'
   const isLostDst = lostDests.includes(row.dst);
   if (isLostDst && targetKey !== 'NO ANSWER') {

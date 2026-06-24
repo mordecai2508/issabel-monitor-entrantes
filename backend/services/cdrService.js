@@ -9,6 +9,8 @@ function resolveDispositionLocal(disposition, dst, dstchannel, lostDests) {
   const d = (disposition || '').toUpperCase();
   let key = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'].includes(d) ? d : null;
   if (!key) return disposition;
+  // #37: BUSY se trata como NO ANSWER
+  if (key === 'BUSY') key = 'NO ANSWER';
   if (lostDests.includes(dst) && key !== 'NO ANSWER') key = 'NO ANSWER';
   if (key === 'ANSWERED' && !AGENT_DSTCHANNEL_RE.test(dstchannel || '')) key = 'NO ANSWER';
   return key;
@@ -45,11 +47,12 @@ function buildWhereClause(filters, lostDests = []) {
   }
 
   if (disposition) {
-    const d = disposition.toUpperCase();
+    // #37: filtrar por BUSY equivale a filtrar por NO ANSWER (disposición efectiva)
+    const d = disposition.toUpperCase() === 'BUSY' ? 'NO ANSWER' : disposition.toUpperCase();
     if (lostDests.length > 0 && d === 'NO ANSWER') {
       const lp = lostDests.map(() => '?').join(',');
       conditions.push(
-        `(UPPER(disposition) = 'NO ANSWER' OR dst IN (${lp}) OR ` +
+        `(UPPER(disposition) = 'NO ANSWER' OR UPPER(disposition) = 'BUSY' OR dst IN (${lp}) OR ` +
         `(UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?)))`
       );
       params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
@@ -59,9 +62,12 @@ function buildWhereClause(filters, lostDests = []) {
         `(UPPER(disposition) = 'ANSWERED' AND dst NOT IN (${lp}) AND dstchannel REGEXP ?)`
       );
       params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else if (d === 'NO ANSWER') {
+      // Sin lostDests: incluir filas BUSY originales también
+      conditions.push("(UPPER(disposition) = 'NO ANSWER' OR UPPER(disposition) = 'BUSY')");
     } else {
       conditions.push('UPPER(disposition) = UPPER(?)');
-      params.push(disposition);
+      params.push(d);
     }
   }
 
@@ -161,11 +167,12 @@ function buildOutboundWhereClause(filters, outboundChannels, lostDests = []) {
   }
 
   if (filters.disposition) {
-    const d = filters.disposition.toUpperCase();
+    // #37: filtrar por BUSY equivale a filtrar por NO ANSWER (disposición efectiva)
+    const d = filters.disposition.toUpperCase() === 'BUSY' ? 'NO ANSWER' : filters.disposition.toUpperCase();
     if (lostDests.length > 0 && d === 'NO ANSWER') {
       const lp = lostDests.map(() => '?').join(',');
       conditions.push(
-        `(UPPER(disposition) = 'NO ANSWER' OR dst IN (${lp}) OR ` +
+        `(UPPER(disposition) = 'NO ANSWER' OR UPPER(disposition) = 'BUSY' OR dst IN (${lp}) OR ` +
         `(UPPER(disposition) = 'ANSWERED' AND (dstchannel IS NULL OR dstchannel = '' OR dstchannel NOT REGEXP ?)))`
       );
       params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
@@ -175,9 +182,12 @@ function buildOutboundWhereClause(filters, outboundChannels, lostDests = []) {
         `(UPPER(disposition) = 'ANSWERED' AND dst NOT IN (${lp}) AND dstchannel REGEXP ?)`
       );
       params.push(...lostDests, AGENT_DSTCHANNEL_MYSQL);
+    } else if (d === 'NO ANSWER') {
+      // Sin lostDests: incluir filas BUSY originales también
+      conditions.push("(UPPER(disposition) = 'NO ANSWER' OR UPPER(disposition) = 'BUSY')");
     } else {
       conditions.push('UPPER(disposition) = UPPER(?)');
-      params.push(filters.disposition);
+      params.push(d);
     }
   }
 

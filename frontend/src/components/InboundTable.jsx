@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 
+// #37: la opción 'BUSY' se elimina porque BUSY se reclasifica a NO ANSWER en el backend
 const DISPOSITION_OPTIONS = [
   { value: '',          label: 'Todas' },
   { value: 'ANSWERED',  label: 'Contestada' },
   { value: 'NO ANSWER', label: 'No contestada' },
-  { value: 'BUSY',      label: 'Ocupado' },
   { value: 'FAILED',    label: 'Fallida' },
 ];
 
