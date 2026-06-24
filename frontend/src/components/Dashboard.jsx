@@ -134,12 +134,12 @@ export default function Dashboard() {
   const noAnswerPct =
     total > 0 ? Math.round((noAnswer / total) * 1000) / 10 : 0;
 
-  // #25: desglose de "Perdidas" por horario de atención (solo si está configurado).
+  // #25/#38: desglose de "Perdidas" por horario de atención (solo si está configurado).
   const businessHours = data?.businessHours ?? null;
-  const perdidasSubItems = businessHours ? [
-    { label: 'En horario',       value: noAnswerBreakdown.ivr_hangup_business ?? 0, colorClass: 'text-red-400' },
-    { label: 'Fuera de horario', value: noAnswerBreakdown.ivr_hangup_offhours ?? 0, colorClass: 'text-slate-400' },
-  ] : null;
+  const lostBusiness    = noAnswerBreakdown.ivr_hangup_business ?? 0;
+  const lostOffhours    = noAnswerBreakdown.ivr_hangup_offhours ?? 0;
+  const lostBusinessPct = total > 0 ? Math.round((lostBusiness / total) * 1000) / 10 : 0;
+  const lostOffhoursPct = total > 0 ? Math.round((lostOffhours / total) * 1000) / 10 : 0;
 
   const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
   const outboundTotal = data?.outbound?.stats?.total ?? 0;
@@ -189,10 +189,38 @@ export default function Dashboard() {
             <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
               sub="del total" pct={noAnswerPct}
               hint="Llamadas que llegaron a la cola de espera pero ningún agente las tomó a tiempo y el cliente colgó la llamada. El cliente esperó y no fue atendido." />
-            <StatCard label="Perdidas" value={lost} icon={PhoneMissed} color="red"
-              sub="del total" pct={lostPct}
-              subItems={perdidasSubItems}
-              hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien. Cuantas menos haya, mejor." />
+            {businessHours ? (
+              <>
+                <StatCard
+                  label="Perdidas en horario"
+                  value={lostBusiness}
+                  icon={PhoneMissed}
+                  color="red"
+                  sub="del total"
+                  pct={lostBusinessPct}
+                  hint="Clientes que llamaron durante el horario de atención, escucharon el menú y colgaron antes de hablar con alguien."
+                />
+                <StatCard
+                  label="Perdidas fuera de horario"
+                  value={lostOffhours}
+                  icon={PhoneMissed}
+                  color="slate"
+                  sub="del total"
+                  pct={lostOffhoursPct}
+                  hint="Clientes que llamaron fuera del horario de atención, escucharon el menú y colgaron antes de hablar con alguien."
+                />
+              </>
+            ) : (
+              <StatCard
+                label="Perdidas"
+                value={lost}
+                icon={PhoneMissed}
+                color="red"
+                sub="del total"
+                pct={lostPct}
+                hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien."
+              />
+            )}
             
           </div>
 
