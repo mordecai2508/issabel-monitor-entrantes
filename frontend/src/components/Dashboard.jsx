@@ -182,16 +182,18 @@ export default function Dashboard() {
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
+            
             <StatCard label="Contestadas" value={answered} icon={PhoneCall} color="green"
               sub="del total" pct={answeredPct}
               hint="Llamadas en las que un agente atendió y hubo conversación real. Es el indicador principal de que los agentes están respondiendo." />
+            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
+              sub="del total" pct={noAnswerPct}
+              hint="Llamadas que llegaron a la cola de espera pero ningún agente las tomó a tiempo y el cliente colgó la llamada. El cliente esperó y no fue atendido." />
             <StatCard label="Perdidas" value={lost} icon={PhoneMissed} color="red"
               sub="del total" pct={lostPct}
               subItems={perdidasSubItems}
               hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien. Cuantas menos haya, mejor." />
-            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
-              sub="del total" pct={noAnswerPct}
-              hint="Llamadas que llegaron a la cola de espera pero ningún agente las tomó a tiempo y el cliente colgó la llamada. El cliente esperó y no fue atendido." />
+            
           </div>
 
           {/* Resumen de duración/canales/extensiones */}

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual de Usuario — Issabel Call Monitor</title>
+  <style>
+    /* ── Reset y tipografía ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #1e3a5f;
+      --accent:  #3b82f6;
+      --text:    #1a202c;
+      --muted:   #4a5568;
+      --border:  #e2e8f0;
+      --bg-alt:  #f7fafc;
+      --green:   #276749;
+      --red:     #9b2335;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.65;
+      color: var(--text);
+      background: #fff;
+    }
+
+    /* ── Diseño de página (impresión y pantalla) ────────────────── */
+    @page {
+      size: A4;
+      margin: 18mm 20mm 18mm 20mm;
+    }
+
+    .page-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px 32px;
+    }
+
+    /* ── Portada ────────────────────────────────────────────────── */
+    .cover {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 260px;
+      margin-bottom: 48px;
+      padding: 40px 32px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      border-radius: 12px;
+      color: #fff;
+      text-align: center;
+      page-break-after: always;
+    }
+
+    .cover .logo-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .cover h1 {
+      font-size: 22pt;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .cover .subtitle {
+      font-size: 13pt;
+      opacity: 0.85;
+      margin-bottom: 24px;
+    }
+
+    .cover .meta {
+      font-size: 9pt;
+      opacity: 0.7;
+    }
+
+    /* ── Tabla de contenido ─────────────────────────────────────── */
+    .toc {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px 28px;
+      margin-bottom: 40px;
+      background: var(--bg-alt);
+      page-break-after: always;
+    }
+
+    .toc h2 {
+      font-size: 13pt;
+      color: var(--primary);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc-counter;
+      columns: 2;
+      column-gap: 32px;
+    }
+
+    .toc ol li {
+      counter-increment: toc-counter;
+      padding: 3px 0;
+      font-size: 9.5pt;
+      color: var(--muted);
+      break-inside: avoid;
+    }
+
+    .toc ol li::before {
+      content: counter(toc-counter) ".";
+      color: var(--accent);
+      font-weight: 700;
+      margin-right: 6px;
+    }
+
+    .toc ol li a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .toc ol li a:hover { color: var(--accent); }
+
+    /* ── Secciones ──────────────────────────────────────────────── */
+    section { margin-bottom: 40px; }
+
+    section.page-break { page-break-before: always; }
+
+    /* ── Encabezados ────────────────────────────────────────────── */
+    h1 {
+      font-size: 20pt;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 14pt;
+      color: var(--primary);
+      margin: 32px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    h3 {
+      font-size: 11pt;
+      color: var(--primary);
+      margin: 20px 0 8px;
+    }
+
+    h4 {
+      font-size: 10pt;
+      color: var(--muted);
+      margin: 16px 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Párrafos y listas ──────────────────────────────────────── */
+    p { margin-bottom: 10px; }
+
+    ul, ol {
+      margin: 8px 0 12px 20px;
+    }
+
+    li { margin-bottom: 4px; }
+
+    /* ── Tablas ─────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 9.5pt;
+    }
+
+    thead tr { background: var(--primary); color: #fff; }
+
+    thead th {
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 9pt;
+    }
+
+    tbody tr:nth-child(even) { background: var(--bg-alt); }
+
+    tbody td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    /* ── Callouts / notas ───────────────────────────────────────── */
+    .note {
+      background: #eff6ff;
+      border-left: 4px solid var(--accent);
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      margin: 12px 0;
+      font-size: 9.5pt;
+      color: #1e40af;
+    }
+
+    .warning {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      margin: 12px 0;
+      font-size: 9.5pt;
+      color: #78350f;
+    }
+
+    /* ── Badges de rol ──────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 8pt;
+      font-weight: 600;
+    }
+
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-gray { background: #e5e7eb; color: #374151; }
+    .badge-green { background: #d1fae5; color: var(--green); }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+
+    /* ── Encabezado de pantalla ─────────────────────────────────── */
+    .screen-header {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 9pt;
+    }
+
+    .screen-header .field { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+    .screen-header .field strong { color: var(--text); }
+
+    /* ── Pasos numerados ────────────────────────────────────────── */
+    .steps { margin: 12px 0; }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+      font-size: 9.5pt;
+    }
+
+    .step-num {
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 8.5pt;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Tabla de permisos ──────────────────────────────────────── */
+    .check { color: var(--green); font-weight: 700; }
+    .cross  { color: var(--red); font-weight: 700; }
+
+    /* ── Glosario ───────────────────────────────────────────────── */
+    .glossary dt {
+      font-weight: 700;
+      color: var(--primary);
+      margin-top: 10px;
+    }
+
+    .glossary dd {
+      margin-left: 20px;
+      color: var(--muted);
+      font-size: 9.5pt;
+    }
+
+    /* ── Pie de página ──────────────────────────────────────────── */
+    footer {
+      margin-top: 60px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 8.5pt;
+      color: #a0aec0;
+      text-align: center;
+    }
+
+    /* ── Impresión ──────────────────────────────────────────────── */
+    @media print {
+      body { font-size: 9.5pt; }
+      .cover { border-radius: 0; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PORTADA -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="cover">
+    <div class="logo-icon">📊</div>
+    <h1>Issabel Call Monitor</h1>
+    <div class="subtitle">Manual de Usuario</div>
+    <div class="meta">Versión 2.0 &nbsp;·&nbsp; Junio 2026</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TABLA DE CONTENIDO -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <div class="toc">
+    <h2>Tabla de contenido</h2>
+    <ol>
+      <li><a href="#intro">Introducción</a></li>
+      <li><a href="#acceso">Acceso al sistema</a></li>
+      <li><a href="#navegacion">Navegación general</a></li>
+      <li><a href="#dashboard">Dashboard — Monitoreo en tiempo real</a></li>
+      <li><a href="#entrantes">Llamadas Entrantes</a></li>
+      <li><a href="#salientes">Llamadas Salientes</a></li>
+      <li><a href="#historico">Histórico de Llamadas</a></li>
+      <li><a href="#analytics">Analytics Histórico</a></li>
+      <li><a href="#alertas">Alertas Activas</a></li>
+      <li><a href="#reportes">Reportes</a></li>
+      <li><a href="#usuarios">Gestión de Usuarios</a></li>
+      <li><a href="#config">Configuración del Sistema</a></li>
+      <li><a href="#reglas">Reglas de Alerta</a></li>
+      <li><a href="#canales">Canales</a></li>
+      <li><a href="#permisos">Roles y permisos</a></li>
+      <li><a href="#glosario">Glosario</a></li>
+    </ol>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 1. INTRODUCCIÓN -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="intro">
+    <h2>1. Introducción</h2>
+    <p>
+      <strong>Issabel Call Monitor</strong> es un dashboard en tiempo real que muestra las estadísticas
+      de llamadas de su central telefónica (PBX Issabel/Asterisk). Permite a supervisores y operadores
+      de call center visualizar el estado del tráfico telefónico del día, consultar históricos,
+      generar reportes y configurar alertas automáticas.
+    </p>
+
+    <h3>¿Qué puede hacer con esta herramienta?</h3>
+    <ul>
+      <li>Ver cuántas llamadas se recibieron, contestaron y perdieron <strong>en este momento</strong>.</li>
+      <li>Consultar el historial de llamadas de días, semanas o meses anteriores.</li>
+      <li>Comparar el rendimiento entre dos períodos.</li>
+      <li>Generar reportes ejecutivos en PDF o Excel.</li>
+      <li>Recibir alertas automáticas cuando ocurre algo inusual (caída de troncal, pico de llamadas perdidas, etc.).</li>
+      <li>Administrar usuarios y personalizar el sistema.</li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 2. ACCESO -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="acceso">
+    <h2>2. Acceso al sistema</h2>
+
+    <h3>Iniciar sesión</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Abra su navegador web e ingrese la dirección del sistema (p. ej. <code>http://192.168.1.100:4000</code>).</div></div>
+      <div class="step"><div class="step-num">2</div><div>Ingrese su <strong>nombre de usuario</strong> y <strong>contraseña</strong>.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Haga clic en <strong>Iniciar sesión</strong>.</div></div>
+    </div>
+
+    <div class="note">💡 Si olvidó su contraseña, comuníquese con el administrador del sistema para que la restablezca.</div>
+
+    <h3>Cerrar sesión</h3>
+    <p>Haga clic en el ícono de usuario ubicado en la esquina superior derecha del menú lateral y seleccione <strong>Cerrar sesión</strong>.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 3. NAVEGACIÓN -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="navegacion">
+    <h2>3. Navegación general</h2>
+    <p>El menú principal se encuentra en el panel lateral izquierdo. Dependiendo de su rol verá diferentes opciones.</p>
+
+    <h3>Menú para Operadores</h3>
+    <table>
+      <thead><tr><th>Sección</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Dashboard</strong></td><td>Monitoreo en tiempo real del día actual</td></tr>
+        <tr><td><strong>Entrantes</strong></td><td>Llamadas recibidas del exterior (hoy)</td></tr>
+        <tr><td><strong>Salientes</strong></td><td>Llamadas realizadas hacia el exterior (hoy)</td></tr>
+        <tr><td><strong>Histórico</strong></td><td>Consulta estadísticas por rango de fechas</td></tr>
+        <tr><td><strong>Analytics</strong></td><td>Tendencias, comparativas y rankings</td></tr>
+        <tr><td><strong>Alertas</strong></td><td>Alertas activas generadas por el sistema</td></tr>
+        <tr><td><strong>Reportes</strong></td><td>Generación de reportes en PDF o Excel</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Opciones adicionales para Administradores</h3>
+    <table>
+      <thead><tr><th>Sección</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Usuarios</strong></td><td>Crear y gestionar cuentas de usuario</td></tr>
+        <tr><td><strong>Configuración</strong></td><td>Parámetros de empresa, logo, horario y apariencia</td></tr>
+        <tr><td><strong>Reglas de alerta</strong></td><td>Configurar condiciones para alertas automáticas</td></tr>
+        <tr><td><strong>Canales</strong></td><td>Asignar nombres a troncales/canales</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Indicador de conexión en tiempo real</h3>
+    <p>En la esquina superior derecha del dashboard verá un badge que indica el estado de la conexión en vivo:</p>
+    <ul>
+      <li><span class="badge badge-green">🟢 En vivo</span> — El sistema recibe datos correctamente.</li>
+      <li><span class="badge badge-gray">⚪ Reconectando…</span> — Se perdió la conexión; el sistema intenta reconectar automáticamente.</li>
+    </ul>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 4. DASHBOARD -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="dashboard" class="page-break">
+    <h2>4. Dashboard — Monitoreo en tiempo real</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+      <div class="field">🔄 <strong>Actualización:</strong> Automática cada 30 seg</div>
+    </div>
+
+    <p>El Dashboard es la pantalla principal. Muestra un resumen completo de toda la actividad telefónica del <strong>día actual</strong>.</p>
+
+    <h3>4.1 Tarjetas de resumen</h3>
+    <table>
+      <thead><tr><th>Tarjeta</th><th>Qué muestra</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Total de llamadas</strong></td><td>Todas las llamadas del día (entrantes + salientes)</td></tr>
+        <tr><td><strong>Contestadas</strong></td><td>Llamadas atendidas por un agente; incluye porcentaje sobre el total</td></tr>
+        <tr><td><strong>Perdidas</strong></td><td>Clientes que colgaron mientras esperaban en el IVR/menú</td></tr>
+        <tr><td><strong>No contestadas</strong></td><td>Clientes que esperaron en cola pero ningún agente respondió a tiempo</td></tr>
+        <tr><td><strong>Duración promedio</strong></td><td>Duración media de llamadas contestadas (min:seg)</td></tr>
+        <tr><td><strong>Tiempo total</strong></td><td>Suma de la duración de todas las llamadas del día</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      💡 <strong>Perdidas vs. No contestadas:</strong> Una llamada <em>perdida</em> es cuando el cliente cuelga antes de
+      hablar con un agente (se fue del menú IVR). Una <em>no contestada</em> es cuando el cliente esperó en la cola
+      de espera pero los agentes no la tomaron.
+    </div>
+
+    <h3>4.2 Desglose de Perdidas por horario</h3>
+    <p>Si el administrador configuró un horario de atención, las llamadas perdidas se dividen en:</p>
+    <ul>
+      <li><strong>En horario:</strong> Llamadas perdidas durante el horario laboral (alta prioridad de seguimiento).</li>
+      <li><strong>Fuera de horario:</strong> Llamadas perdidas fuera del horario laboral (resultado esperado).</li>
+    </ul>
+
+    <h3>4.3 Colas de atención</h3>
+    <p>Tarjetas individuales para cada cola del sistema (p. ej. <em>Soporte</em>, <em>Ventas</em>), mostrando total de llamadas, contestadas, no contestadas y señal de ocupado.</p>
+
+    <h3>4.4 Gráficas</h3>
+    <ul>
+      <li><strong>Distribución de llamadas (pastel):</strong> Proporción visual entre contestadas, perdidas, no contestadas y fallidas.</li>
+      <li><strong>Llamadas por hora (barras/línea):</strong> Volumen de llamadas en cada hora del día; permite identificar horas pico.</li>
+    </ul>
+
+    <h3>4.5 Estadísticas por canal</h3>
+    <p>Tabla al final que muestra, para cada troncal, el total de llamadas, contestadas, no contestadas, ocupado, fallidas, duración total y duración promedio.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 5. ENTRANTES -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="entrantes">
+    <h2>5. Llamadas Entrantes</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /inbound</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+      <div class="field">🔄 <strong>Actualización:</strong> Automática cada 30 seg</div>
+    </div>
+
+    <p>
+      Muestra las mismas métricas que el Dashboard pero <strong>filtradas únicamente para llamadas que llegaron
+      desde fuera</strong> (clientes llamando al call center). Útil para supervisores que gestionan exclusivamente
+      el tráfico de recepción sin mezclar con llamadas salientes.
+    </p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 6. SALIENTES -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="salientes">
+    <h2>6. Llamadas Salientes</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /outbound</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+      <div class="field">🔄 <strong>Actualización:</strong> Automática cada 30 seg</div>
+    </div>
+
+    <p>Muestra las métricas de <strong>llamadas que los agentes realizaron hacia el exterior</strong>.</p>
+    <p>Incluye: total de llamadas salientes, contestadas con porcentaje, duración promedio y estadísticas por canal saliente.</p>
+
+    <div class="note">Si no hubo actividad saliente, el sistema mostrará el mensaje: <em>"No hay llamadas salientes registradas hoy".</em></div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 7. HISTÓRICO -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="historico" class="page-break">
+    <h2>7. Histórico de Llamadas</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /historical</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+    </div>
+
+    <p>Permite consultar las estadísticas de <strong>cualquier período pasado</strong> seleccionando un rango de fechas.</p>
+
+    <h3>Cómo consultar el histórico</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>En el campo <strong>Desde</strong>, seleccione la fecha de inicio.</div></div>
+      <div class="step"><div class="step-num">2</div><div>En el campo <strong>Hasta</strong>, seleccione la fecha de fin.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Haga clic en <strong>Buscar</strong>.</div></div>
+      <div class="step"><div class="step-num">4</div><div>El sistema mostrará las mismas métricas del Dashboard para el período indicado.</div></div>
+    </div>
+
+    <h3>Exportar datos</h3>
+    <p>Después de realizar una búsqueda, haga clic en <strong>Exportar CSV</strong> para descargar la tabla de estadísticas por canal.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 8. ANALYTICS -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="analytics">
+    <h2>8. Analytics Histórico</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /historical/analytics</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+    </div>
+
+    <p>Módulo avanzado de análisis con tres herramientas independientes.</p>
+
+    <h3>8.1 Tendencia de llamadas</h3>
+    <p>Muestra la evolución del volumen de llamadas a lo largo del tiempo en una gráfica de barras.</p>
+
+    <table>
+      <thead><tr><th>Período predefinido</th><th>Rango incluido</th></tr></thead>
+      <tbody>
+        <tr><td>Día</td><td>Solo el día actual</td></tr>
+        <tr><td>Semana</td><td>Lunes a domingo de la semana actual</td></tr>
+        <tr><td>Mes</td><td>Mes calendario actual</td></tr>
+        <tr><td>Año</td><td>Año calendario actual</td></tr>
+        <tr><td>Personalizado</td><td>Fecha inicio y fin seleccionables manualmente</td></tr>
+      </tbody>
+    </table>
+
+    <h3>8.2 Comparativa de períodos</h3>
+    <p>Compara las métricas de dos períodos diferentes para identificar mejoras o retrocesos.</p>
+
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Defina el <strong>Período 1</strong> (P1): fecha inicio y fin.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Defina el <strong>Período 2</strong> (P2): fecha inicio y fin.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Haga clic en <strong>Comparar</strong>.</div></div>
+    </div>
+
+    <p>La tabla mostrará, para cada métrica, el valor de P1, el valor de P2 y la variación porcentual: <span style="color:var(--red)">rojo = retroceso</span>, <span style="color:var(--green)">verde = mejora</span>.</p>
+
+    <h3>8.3 Rankings</h3>
+    <p>Ranking de rendimiento de agentes (extensiones) o troncales, ordenados por volumen de llamadas.</p>
+
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Seleccione <strong>Agentes</strong> o <strong>Troncales</strong> con el toggle.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Defina el rango de fechas.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Indique cuántos resultados mostrar en <strong>Top N</strong> (1–50, por defecto 10).</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 9. ALERTAS -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="alertas" class="page-break">
+    <h2>9. Alertas Activas</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /alerts</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+      <div class="field">🔄 <strong>Actualización:</strong> Tiempo real (instantánea)</div>
+    </div>
+
+    <p>Muestra las alertas activas generadas automáticamente. Las alertas nuevas aparecen en tiempo real sin necesidad de recargar la página.</p>
+
+    <h3>Tipos de alertas</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Cuándo se genera</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Pico de llamadas perdidas</strong></td><td>Se superó el umbral de llamadas perdidas en los últimos 60 minutos</td></tr>
+        <tr><td><strong>Troncal fuera de servicio</strong></td><td>Un canal no registró actividad durante X minutos</td></tr>
+        <tr><td><strong>PBX desconectado</strong></td><td>La central telefónica dejó de responder</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Resolver una alerta</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Identifique la alerta en la lista.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Verifique y atienda la situación en el sistema telefónico.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Haga clic en <strong>Resolver</strong> en la tarjeta de la alerta para retirarla de la lista.</div></div>
+    </div>
+
+    <div class="warning">⚠️ Resolver una alerta en el sistema <strong>no corrige automáticamente</strong> el problema en la central. Es solo una confirmación de que el operador tomó conocimiento del evento.</div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 10. REPORTES -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="reportes">
+    <h2>10. Reportes</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /reports</div>
+      <div class="field">👤 <strong>Rol:</strong> Operador · Admin</div>
+    </div>
+
+    <p>Genera reportes formales descargables en <strong>PDF</strong> o <strong>Excel (XLSX)</strong>.</p>
+
+    <h3>Tipos de reporte disponibles</h3>
+    <table>
+      <thead><tr><th>Reporte</th><th>Contenido</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Resumen ejecutivo</strong></td><td>Métricas globales del período: totales, porcentajes, duración</td></tr>
+        <tr><td><strong>Llamadas entrantes</strong></td><td>Estadísticas detalladas del tráfico entrante</td></tr>
+        <tr><td><strong>Llamadas salientes</strong></td><td>Estadísticas detalladas del tráfico saliente</td></tr>
+        <tr><td><strong>Actividad de extensiones</strong></td><td>Ranking de agentes por volumen de llamadas</td></tr>
+        <tr><td><strong>Actividad de troncales</strong></td><td>Ranking de canales por volumen de llamadas</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Cómo generar un reporte</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Seleccione el <strong>tipo de reporte</strong> haciendo clic en uno de los botones.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Defina el rango de fechas con los campos <strong>Desde</strong> y <strong>Hasta</strong>.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Haga clic en <strong>Descargar PDF</strong> o <strong>Descargar Excel</strong>.</div></div>
+      <div class="step"><div class="step-num">4</div><div>El archivo se descargará automáticamente en su computadora.</div></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 11. USUARIOS (ADMIN) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="usuarios" class="page-break">
+    <h2>11. Administración — Gestión de Usuarios</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /admin/users</div>
+      <div class="field">👤 <strong>Rol:</strong> <span class="badge badge-blue">Solo Admin</span></div>
+    </div>
+
+    <h3>11.1 Crear un nuevo usuario</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Complete los campos: <strong>Username</strong> (único, sin espacios), <strong>Contraseña</strong> (mínimo 8 caracteres) y <strong>Rol</strong> (Operador o Admin).</div></div>
+      <div class="step"><div class="step-num">2</div><div>Haga clic en <strong>Crear usuario</strong>.</div></div>
+    </div>
+
+    <div class="note">💡 Las contraseñas se almacenan de forma segura (cifradas con bcrypt). El sistema nunca guarda contraseñas en texto plano.</div>
+
+    <h3>11.2 Gestionar usuarios existentes</h3>
+    <table>
+      <thead><tr><th>Acción</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Editar</strong></td><td>Cambia el username, rol o estado (activo/inactivo)</td></tr>
+        <tr><td><strong>Resetear contraseña</strong></td><td>Genera una contraseña temporal; anótela y entréguele al usuario</td></tr>
+        <tr><td><strong>Activar / Desactivar</strong></td><td>Toggle rápido para habilitar o bloquear el acceso</td></tr>
+      </tbody>
+    </table>
+
+    <div class="warning">⚠️ Un usuario <strong>desactivado</strong> no puede iniciar sesión aunque tenga credenciales correctas.</div>
+
+    <h3>11.3 Auditoría de accesos</h3>
+    <p>La pestaña <strong>Auditoría</strong> muestra un registro de todos los eventos de acceso: inicios de sesión exitosos, cierres de sesión e intentos fallidos. Cada registro incluye: fecha/hora, usuario, acción e IP de origen.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 12. CONFIG SISTEMA (ADMIN) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="config">
+    <h2>12. Administración — Configuración del Sistema</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /admin/config</div>
+      <div class="field">👤 <strong>Rol:</strong> <span class="badge badge-blue">Solo Admin</span></div>
+    </div>
+
+    <h3>Pestaña: General</h3>
+    <table>
+      <thead><tr><th>Campo</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Nombre de la empresa</strong></td><td>Se muestra en el encabezado del dashboard y en los reportes</td></tr>
+        <tr><td><strong>Zona horaria</strong></td><td>Debe coincidir con la zona horaria del servidor Issabel (ej. <code>-05:00</code>)</td></tr>
+        <tr><td><strong>Idioma</strong></td><td>Idioma de la interfaz: Español o Inglés</td></tr>
+        <tr><td><strong>Horario de atención</strong></td><td>Activa el desglose de llamadas perdidas por horario laboral</td></tr>
+      </tbody>
+    </table>
+
+    <h4>Configurar horario de atención</h4>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Active la casilla <strong>Horario de atención</strong>.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Seleccione los <strong>días laborales</strong> (ej. Lunes a Viernes).</div></div>
+      <div class="step"><div class="step-num">3</div><div>Ingrese la <strong>hora de inicio</strong> y <strong>hora de fin</strong> en formato HH:MM.</div></div>
+      <div class="step"><div class="step-num">4</div><div>Haga clic en <strong>Guardar</strong>.</div></div>
+    </div>
+
+    <h3>Pestaña: Personalización</h3>
+
+    <h4>Logo de la empresa</h4>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Haga clic en <strong>Seleccionar archivo</strong> y elija una imagen (PNG o JPG, máx. 2 MB).</div></div>
+      <div class="step"><div class="step-num">2</div><div>Haga clic en <strong>Subir logo</strong>. El logo aparecerá en el encabezado del menú.</div></div>
+    </div>
+
+    <h4>Nombres de extensiones</h4>
+    <p>Asigna nombres amigables a las extensiones (números internos) para que en los rankings aparezca el nombre del agente en lugar del número.</p>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Localice la extensión en la tabla.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Haga clic en el ícono de <strong>lápiz</strong> para editar.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Escriba el nombre y presione <strong>Enter</strong> para guardar o <strong>Escape</strong> para cancelar.</div></div>
+      <div class="step"><div class="step-num">4</div><div>Use el toggle <strong>Visible / Oculta</strong> para mostrar u ocultar la extensión en los rankings.</div></div>
+    </div>
+
+    <h3>Pestaña: Apariencia</h3>
+    <p>Permite personalizar los colores del tema visual del sistema. Haga clic en el cuadro de color o escriba el código hexadecimal (ej. <code>#3b82f6</code>) y presione <strong>Guardar</strong>.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 13. REGLAS DE ALERTA (ADMIN) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="reglas" class="page-break">
+    <h2>13. Administración — Reglas de Alerta</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /admin/alerts</div>
+      <div class="field">👤 <strong>Rol:</strong> <span class="badge badge-blue">Solo Admin</span></div>
+    </div>
+
+    <p>Configura las condiciones que disparan alertas automáticas visibles en el Panel de Alertas.</p>
+
+    <h3>Tipos de reglas</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Cuándo se activa</th><th>Umbral</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Pico de llamadas perdidas</strong></td><td>Cuando en los últimos 60 min se superó X llamadas perdidas</td><td>Número de llamadas</td></tr>
+        <tr><td><strong>Troncal fuera de servicio</strong></td><td>Cuando un canal no registra actividad durante X minutos</td><td>Minutos sin actividad</td></tr>
+        <tr><td><strong>PBX desconectado</strong></td><td>Cuando la central no responde</td><td>Sin umbral</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Crear una regla</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Seleccione el <strong>tipo de regla</strong> en el formulario.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Si el tipo lo requiere, ingrese el <strong>umbral</strong> numérico.</div></div>
+      <div class="step"><div class="step-num">3</div><div>(Opcional) Ingrese un <strong>correo electrónico</strong> para recibir notificaciones.</div></div>
+      <div class="step"><div class="step-num">4</div><div>Haga clic en <strong>Guardar</strong>.</div></div>
+    </div>
+
+    <h3>Gestionar reglas existentes</h3>
+    <table>
+      <thead><tr><th>Acción</th><th>Descripción</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Habilitar / Deshabilitar</strong></td><td>Toggle para activar o pausar la regla sin eliminarla</td></tr>
+        <tr><td><strong>Editar</strong></td><td>Cambia el umbral y el correo de notificación</td></tr>
+        <tr><td><strong>Eliminar</strong></td><td>Elimina la regla permanentemente</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 14. CANALES (ADMIN) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="canales">
+    <h2>14. Administración — Canales</h2>
+
+    <div class="screen-header">
+      <div class="field">🌐 <strong>URL:</strong> /channels</div>
+      <div class="field">👤 <strong>Rol:</strong> <span class="badge badge-blue">Solo Admin</span></div>
+    </div>
+
+    <p>
+      Permite asignar <strong>nombres personalizados</strong> a los canales (troncales) de la central telefónica.
+      Estos nombres aparecen en todos los dashboards, tablas y reportes en lugar del identificador técnico.
+    </p>
+
+    <h3>Asignar un nombre a un canal</h3>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div>Localice el canal en la tabla.</div></div>
+      <div class="step"><div class="step-num">2</div><div>Haga clic en el ícono de <strong>lápiz</strong> (✏️) en la columna de acciones.</div></div>
+      <div class="step"><div class="step-num">3</div><div>Escriba el nombre deseado (p. ej. <em>Troncal Principal</em>, <em>Claro</em>, <em>Telmex</em>).</div></div>
+      <div class="step"><div class="step-num">4</div><div>Presione <strong>Enter</strong> para guardar o <strong>Escape</strong> para cancelar.</div></div>
+    </div>
+
+    <div class="note">
+      Los canales <span class="badge badge-blue">Entrante</span> reciben llamadas del exterior.
+      Los canales <span class="badge badge-amber">Saliente</span> se usan para llamadas hacia el exterior.
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 15. PERMISOS -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="permisos" class="page-break">
+    <h2>15. Referencia de roles y permisos</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Función</th>
+          <th style="text-align:center">Operador</th>
+          <th style="text-align:center">Administrador</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Dashboard en tiempo real</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Llamadas Entrantes</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Llamadas Salientes</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Histórico de Llamadas</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Analytics Histórico</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Alertas Activas (ver y resolver)</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Reportes (PDF / Excel)</td><td class="check" style="text-align:center">✔</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Gestión de Usuarios</td><td class="cross" style="text-align:center">✗</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Configuración del Sistema</td><td class="cross" style="text-align:center">✗</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Reglas de Alerta</td><td class="cross" style="text-align:center">✗</td><td class="check" style="text-align:center">✔</td></tr>
+        <tr><td>Canales (nombres de troncales)</td><td class="cross" style="text-align:center">✗</td><td class="check" style="text-align:center">✔</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- 16. GLOSARIO -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="glosario">
+    <h2>16. Glosario</h2>
+
+    <dl class="glossary">
+      <dt>CDR</dt>
+      <dd>Call Detail Record — Registro detallado de cada llamada almacenado por la central.</dd>
+
+      <dt>Canal / Troncal</dt>
+      <dd>Línea telefónica que conecta la central con el proveedor o con el exterior.</dd>
+
+      <dt>Cola</dt>
+      <dd>Lista de espera donde los clientes aguardan a ser atendidos por un agente disponible.</dd>
+
+      <dt>Extensión</dt>
+      <dd>Número interno asignado a un agente o teléfono dentro de la empresa.</dd>
+
+      <dt>IVR</dt>
+      <dd>Interactive Voice Response — Menú de voz automático ("Marque 1 para soporte…").</dd>
+
+      <dt>PBX</dt>
+      <dd>Private Branch Exchange — La central telefónica (Issabel/Asterisk).</dd>
+
+      <dt>SSE</dt>
+      <dd>Server-Sent Events — Tecnología que permite recibir actualizaciones automáticas del servidor sin recargar la página.</dd>
+
+      <dt>AMI</dt>
+      <dd>Asterisk Manager Interface — Protocolo para comunicarse con Asterisk en tiempo real.</dd>
+
+      <dt>ANSWERED</dt>
+      <dd>Llamada contestada por un agente.</dd>
+
+      <dt>NO ANSWER</dt>
+      <dd>Llamada que no fue atendida (incluye perdidas en IVR y no contestadas en cola).</dd>
+
+      <dt>BUSY</dt>
+      <dd>Llamada que encontró la línea ocupada.</dd>
+
+      <dt>FAILED</dt>
+      <dd>Llamada que no pudo establecerse por error técnico.</dd>
+    </dl>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- PIE DE PÁGINA -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <footer>
+    Issabel Call Monitor v2.0 &nbsp;·&nbsp; Manual de Usuario &nbsp;·&nbsp; Junio 2026
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guía de Usuario — Issabel Call Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #1e3a5f;
+      --accent:  #3b82f6;
+      --text:    #1a202c;
+      --muted:   #4a5568;
+      --border:  #e2e8f0;
+      --bg-alt:  #f7fafc;
+      --green:   #166534;
+      --red:     #991b1b;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.7;
+      color: var(--text);
+      background: #fff;
+    }
+
+    @page {
+      size: A4;
+      margin: 18mm 20mm 18mm 20mm;
+    }
+
+    .page-wrapper {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 28px 36px;
+    }
+
+    /* ── Portada ── */
+    .cover {
+      text-align: center;
+      padding: 56px 32px 48px;
+      margin-bottom: 48px;
+      background: linear-gradient(150deg, var(--primary) 0%, #2563eb 100%);
+      border-radius: 14px;
+      color: #fff;
+      page-break-after: always;
+    }
+
+    .cover .icon { font-size: 54px; margin-bottom: 20px; display: block; }
+    .cover h1 { font-size: 24pt; font-weight: 800; margin-bottom: 10px; }
+    .cover .tagline { font-size: 13pt; opacity: .85; margin-bottom: 6px; }
+    .cover .version { font-size: 9pt; opacity: .6; margin-top: 28px; }
+
+    /* ── Índice ── */
+    .toc {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 44px;
+      page-break-after: always;
+    }
+
+    .toc h2 {
+      font-size: 12pt;
+      color: var(--primary);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .toc ul { list-style: none; columns: 2; column-gap: 28px; }
+
+    .toc ul li {
+      padding: 3px 0;
+      font-size: 10pt;
+      color: var(--muted);
+      break-inside: avoid;
+    }
+
+    .toc ul li::before { content: "→ "; color: var(--accent); font-weight: 700; }
+
+    .toc a { color: var(--muted); text-decoration: none; }
+
+    /* ── Secciones ── */
+    section { margin-bottom: 44px; }
+    section.break { page-break-before: always; }
+
+    /* ── Encabezados ── */
+    h2 {
+      font-size: 15pt;
+      color: var(--primary);
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 3px solid var(--accent);
+    }
+
+    h3 {
+      font-size: 11.5pt;
+      color: var(--primary);
+      margin: 22px 0 8px;
+    }
+
+    p { margin-bottom: 10px; }
+
+    ul, ol { margin: 8px 0 12px 22px; }
+    li { margin-bottom: 5px; }
+
+    /* ── Tablas ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 10pt;
+    }
+
+    thead tr { background: var(--primary); color: #fff; }
+    thead th { padding: 9px 14px; text-align: left; font-weight: 600; }
+    tbody tr:nth-child(even) { background: var(--bg-alt); }
+    tbody td { padding: 8px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+    /* ── Pasos ── */
+    .steps { margin: 10px 0 14px; }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 9px;
+    }
+
+    .num {
+      min-width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 9pt;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ── Callouts ── */
+    .tip {
+      background: #eff6ff;
+      border-left: 4px solid var(--accent);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      font-size: 10pt;
+      color: #1e40af;
+    }
+
+    .warn {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      font-size: 10pt;
+      color: #78350f;
+    }
+
+    /* ── Definición destacada (diferencia perdidas/no contestadas) ── */
+    .def-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .def-card {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .def-card .label {
+      font-weight: 700;
+      font-size: 10pt;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+
+    .def-card p { font-size: 9.5pt; color: var(--muted); margin: 0; }
+
+    /* ── FAQ ── */
+    .faq-item { margin-bottom: 18px; }
+    .faq-item .q { font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    .faq-item .a { font-size: 10pt; color: var(--muted); margin-left: 4px; }
+
+    /* ── Pie ── */
+    footer {
+      margin-top: 56px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      font-size: 8.5pt;
+      color: #a0aec0;
+      text-align: center;
+    }
+
+    @media print {
+      body { font-size: 10pt; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <!-- PORTADA -->
+  <div class="cover">
+    <span class="icon">📞</span>
+    <h1>WSoluciones Monitor de Llamadas</h1>
+    <div class="tagline">Guía de Usuario — Operadores y Supervisores</div>
+    <div class="version">Versión 2.0 &nbsp;·&nbsp; Junio 2026</div>
+  </div>
+
+  <!-- ÍNDICE -->
+  <div class="toc">
+    <h2>Contenido</h2>
+    <ul>
+      <li><a href="#que-es">¿Qué es este sistema?</a></li>
+      <li><a href="#acceso">Cómo entrar al sistema</a></li>
+      <li><a href="#menu">Las secciones del menú</a></li>
+      <li><a href="#dashboard">Dashboard — El resumen del día</a></li>
+      <li><a href="#entrantes">Llamadas Entrantes</a></li>
+      <li><a href="#salientes">Llamadas Salientes</a></li>
+      <li><a href="#historico">Histórico</a></li>
+      <li><a href="#analytics">Analytics</a></li>
+      <li><a href="#alertas">Alertas</a></li>
+      <li><a href="#reportes">Reportes</a></li>
+      <li><a href="#faq">Preguntas frecuentes</a></li>
+    </ul>
+  </div>
+
+  <!-- ¿QUÉ ES? -->
+  <section id="que-es">
+    <h2>¿Qué es este sistema?</h2>
+    <p>
+      Es una pantalla de monitoreo que muestra, en tiempo real, cuántas llamadas están
+      entrando y saliendo de su empresa, cuántas se contestaron y cuántas se perdieron.
+      También le permite consultar días anteriores y descargar informes.
+    </p>
+    <div class="tip">💡 No necesita hacer nada especial para que los datos se actualicen — el sistema lo hace solo cada 30 segundos.</div>
+  </section>
+
+  <!-- ACCESO -->
+  <section id="acceso">
+    <h2>Cómo entrar al sistema</h2>
+
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Abra su navegador (Chrome, Edge o Firefox) e ingrese la dirección que le dio su administrador.</div></div>
+      <div class="step"><div class="num">2</div><div>Escriba su <strong>usuario</strong> y <strong>contraseña</strong>.</div></div>
+      <div class="step"><div class="num">3</div><div>Haga clic en <strong>Iniciar sesión</strong>.</div></div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\login.png" alt="Imagen del inicio de sesión" width="700" height="500" >
+    </div>
+
+    <div class="tip">💡 Si olvidó su contraseña, avise a su administrador para que la restablezca.</div>
+
+    <h3>Cómo salir</h3>
+    <p>Haga clic en su nombre de usuario en la parte superior del menú lateral y seleccione <strong>Cerrar sesión</strong>.</p>
+  </section>
+
+  <!-- MENÚ -->
+  <section id="menu">
+    <h2>Las secciones del menú</h2>
+    <p>En la barra del lado izquierdo encontrará estas opciones:</p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\menu.png" alt="Descripción de la imagen para accesibilidad" width="705" height="500">
+    </div>
+
+    <table>
+      <thead><tr><th>Sección</th><th>Para qué sirve</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Dashboard</strong></td><td>Ver el resumen de hoy en tiempo real</td></tr>
+        <tr><td><strong>Entrantes</strong></td><td>Ver solo las llamadas que recibió hoy</td></tr>
+        <tr><td><strong>Salientes</strong></td><td>Ver solo las llamadas que realizó hoy</td></tr>
+        <tr><td><strong>Histórico</strong></td><td>Consultar estadísticas de días anteriores</td></tr>
+        <tr><td><strong>Analytics</strong></td><td>Comparar períodos y ver tendencias</td></tr>
+        <tr><td><strong>Alertas</strong></td><td>Ver avisos importantes del sistema</td></tr>
+        <tr><td><strong>Reportes</strong></td><td>Descargar informes en PDF o Excel</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="break">
+    <h2>Dashboard — El resumen del día</h2>
+    <p>Esta es la pantalla principal. Muestra todo lo que está pasando <strong>hoy</strong> con las llamadas de su empresa. Los datos se actualizan solos — el punto verde <strong>"En vivo"</strong> en la esquina superior confirma que la conexión está activa.</p>
+
+    <h3>Los números principales</h3>
+    <table>
+      <thead><tr><th>Tarjeta</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Total de llamadas</strong></td><td>Todas las llamadas del día (recibidas y realizadas)</td></tr>
+        <tr><td><strong>Contestadas</strong></td><td>Llamadas que un agente atendió; también muestra el porcentaje del total</td></tr>
+        <tr><td><strong>Perdidas</strong></td><td>Clientes que colgaron mientras escuchaban el menú de opciones, antes de hablar con alguien</td></tr>
+        <tr><td><strong>No contestadas</strong></td><td>Clientes que esperaron en la línea pero ningún agente los atendió</td></tr>
+        <tr><td><strong>Duración promedio</strong></td><td>Cuánto duran en promedio las llamadas contestadas</td></tr>
+        <tr><td><strong>Tiempo total</strong></td><td>La suma de todas las duraciones del día</td></tr>
+      </tbody>
+    </table>
+
+    <h3>¿Cuál es la diferencia entre "Perdidas" y "No contestadas"?</h3>
+    <div class="def-box">
+      <div class="def-card">
+        <div class="label">📵 Perdida</div>
+        <p>El cliente colgó por sí solo antes de que alguien lo atendiera, mientras escuchaba el menú de opciones ("marque 1, marque 2…").</p>
+      </div>
+      <div class="def-card">
+        <div class="label">🔕 No contestada</div>
+        <p>El cliente esperó en la línea para hablar con un agente, pero ninguno tomó la llamada.</p>
+      </div>
+    </div>
+
+    <h3>Desglose por horario de atención</h3>
+    <p>Si su empresa tiene configurado un horario laboral, las llamadas perdidas aparecen divididas en dos grupos:</p>
+    <ul>
+      <li><strong>En horario:</strong> clientes que llamaron durante las horas de trabajo y no fueron atendidos. Estos requieren seguimiento.</li>
+      <li><strong>Fuera de horario:</strong> clientes que llamaron fuera del horario. Es algo esperado.</li>
+    </ul>
+
+    <h3>Las gráficas</h3>
+    <ul>
+      <li><strong>Gráfica de pastel:</strong> muestra visualmente qué proporción del total se contestó, se perdió, etc.</li>
+      <li><strong>Gráfica por hora:</strong> muestra en qué horas del día hubo más llamadas. Útil para identificar horas de mayor demanda.</li>
+    </ul>
+
+    <h3>Tabla de líneas telefónicas</h3>
+    <p>Al final del dashboard hay una tabla que desglosa las llamadas por cada línea de teléfono de la empresa, con sus propios números de contestadas, perdidas y duración.</p>
+    
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\dashboard.png" alt="Primera parte dashboard" width="705" height="420">
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\dashboard2.png" alt="segunda parte dashboard" width="705" height="420">
+    </div>
+  </section>
+  
+    
+
+  <!-- ENTRANTES -->
+  <section id="entrantes">
+    <h2>Llamadas Entrantes</h2>
+    <p>
+      Muestra exactamente las mismas estadísticas que el Dashboard, pero <strong>filtrando solo las llamadas que llegaron desde afuera</strong> (clientes llamando a su empresa).
+    </p>
+    <p>
+      Es útil cuando quiere revisar únicamente el rendimiento de su equipo de recepción, sin mezclar los datos con las llamadas que sus agentes realizaron hacia afuera.
+    </p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\entrantes.png" alt="llamadas entrantes" width="720" height="550">
+    </div>
+  </section>
+
+  <!-- SALIENTES -->
+  <section id="salientes">
+    <h2>Llamadas Salientes</h2>
+    <p>
+      Muestra las estadísticas de <strong>las llamadas que sus agentes realizaron hacia el exterior</strong> (clientes, proveedores, etc.).
+    </p>
+    <div class="tip">💡 Si no hubo llamadas salientes en el día, el sistema mostrará un aviso indicándolo.</div>
+    
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\salientes.png" alt="llamadas salientes" width="720" height="550">
+    </div>
+  
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="historico" class="break">
+    <h2>Histórico — Consultar días anteriores</h2>
+    <p>Le permite ver las estadísticas de <strong>cualquier período pasado</strong> eligiendo un rango de fechas.</p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\historico.png" alt="historico dashboard" width="705" height="550">      
+    </div>
+    <h3>Cómo consultar</h3>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Haga clic en <strong>Histórico</strong> en el menú.</div></div>
+      <div class="step"><div class="num">2</div><div>Seleccione la <strong>fecha de inicio</strong> y la <strong>fecha de fin</strong>.</div></div>
+      <div class="step"><div class="num">3</div><div>Haga clic en <strong>Buscar</strong>.</div></div>
+      <div class="step"><div class="num">4</div><div>Verá las mismas métricas del Dashboard para ese período.</div></div>
+    </div>
+
+    <h3>Exportar los datos</h3>
+    <p>Después de hacer una búsqueda, haga clic en <strong>Exportar CSV</strong> para descargar la tabla en un archivo compatible con Excel.</p>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section id="analytics">
+    <h2>Analytics — Tendencias y comparativas</h2>
+    <p>Esta sección tiene tres herramientas para analizar el desempeño a lo largo del tiempo.</p>
+
+    <h3>Tendencia de llamadas</h3>
+    <p>Muestra una gráfica con la evolución del volumen de llamadas día a día.</p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\tendenciaLlamadas.png" alt="Tendencia de las llamadas" width="705" height="200">
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Seleccione el período: hoy, esta semana, este mes, este año, o un rango personalizado.</div></div>
+      <div class="step"><div class="num">2</div><div>La gráfica se actualiza automáticamente. Las barras <strong>azules</strong> son el total de llamadas; las <strong>verdes</strong>, las contestadas.</div></div>
+    </div>
+
+    <h3>Comparativa de períodos</h3>
+    <p>Compara dos períodos para saber si el desempeño mejoró o empeoró.</p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\comparativaPeriodos.png" alt="Comparativa de periodos" width="701" height="400">
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Defina el <strong>Período 1</strong> (por ejemplo, la semana pasada).</div></div>
+      <div class="step"><div class="num">2</div><div>Defina el <strong>Período 2</strong> (por ejemplo, la semana anterior).</div></div>
+      <div class="step"><div class="num">3</div><div>Haga clic en <strong>Comparar</strong>.</div></div>
+    </div>
+    <p>La tabla mostrará la diferencia entre los dos períodos: <span style="color:var(--green);font-weight:700">verde = mejoró</span> · <span style="color:var(--red);font-weight:700">rojo = bajó</span>.</p>
+
+    <h3>Rankings</h3>
+    <p>Muestra qué agentes o líneas telefónicas tuvieron más actividad en un período.</p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\analyticsAgentes.png" alt="Comparativa agentes" width="705" height="300">
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Elija <strong>Agentes</strong> o <strong>Líneas</strong> con el selector.</div></div>
+      <div class="step"><div class="num">2</div><div>Seleccione el rango de fechas.</div></div>
+      <div class="step"><div class="num">3</div><div>Indique cuántos resultados ver (por defecto 10).</div></div>
+      <div class="step"><div class="num">4</div><div>La lista aparece ordenada de mayor a menor actividad.</div></div>
+    </div>
+  </section>
+
+  <!-- ALERTAS -->
+  <section id="alertas" class="break">
+    <h2>Alertas — Avisos del sistema</h2>
+    <p>
+      Aquí aparecen avisos automáticos cuando algo inusual ocurre, por ejemplo: demasiadas llamadas perdidas en poco tiempo, o una línea telefónica que dejó de funcionar. Los avisos aparecen en tiempo real, sin necesidad de recargar la página.
+    </p>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\alertas.png" alt="Alertas" width="702" height="300">
+    </div>
+    <h3>Tipos de avisos</h3>
+    <table>
+      <thead><tr><th>Aviso</th><th>Qué significa</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Muchas llamadas perdidas</strong></td><td>En la última hora se perdieron más llamadas de lo normal</td></tr>
+        <tr><td><strong>Línea sin actividad</strong></td><td>Una línea telefónica lleva un tiempo sin recibir ni hacer llamadas</td></tr>
+        <tr><td><strong>Sistema telefónico no responde</strong></td><td>La central de teléfonos dejó de responder</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Cómo atender un aviso</h3>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Lea la descripción del aviso para entender qué ocurrió.</div></div>
+      <div class="step"><div class="num">2</div><div>Tome las acciones necesarias (avise a su supervisor, revise las líneas, etc.).</div></div>
+      <div class="step"><div class="num">3</div><div>Haga clic en <strong>Resolver</strong> para confirmar que atendió el aviso y retirarlo de la lista.</div></div>
+    </div>
+
+    <div class="warn">⚠️ Hacer clic en "Resolver" confirma que usted vio el aviso, pero <strong>no soluciona automáticamente</strong> el problema en el sistema telefónico.</div>
+  </section>
+
+  <!-- REPORTES -->
+  <section id="reportes">
+    <h2>Reportes — Descargar informes</h2>
+    <p>Genera informes formales que puede guardar, imprimir o enviar por correo.</p>
+
+    <h3>Tipos de informes</h3>
+    <table>
+      <thead><tr><th>Informe</th><th>Qué incluye</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Resumen ejecutivo</strong></td><td>Los números más importantes del período seleccionado</td></tr>
+        <tr><td><strong>Llamadas entrantes</strong></td><td>Detalle completo de las llamadas recibidas</td></tr>
+        <tr><td><strong>Llamadas salientes</strong></td><td>Detalle completo de las llamadas realizadas</td></tr>
+        <tr><td><strong>Actividad de agentes</strong></td><td>Qué agente atendió más llamadas en el período</td></tr>
+        <tr><td><strong>Actividad de líneas</strong></td><td>Qué líneas telefónicas tuvieron más tráfico</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Cómo descargar un informe</h3>
+
+    <div>
+      <img src="C:\Users\carlos\Documents\Proyectos\call-monitor\docs\imagenes\reportes.png" alt="como descargar un reportes" width="705" height="400">
+    </div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div>Seleccione el tipo de informe que necesita.</div></div>
+      <div class="step"><div class="num">2</div><div>Elija la <strong>fecha de inicio</strong> y la <strong>fecha de fin</strong>.</div></div>
+      <div class="step"><div class="num">3</div><div>Haga clic en <strong>Descargar PDF</strong> (para imprimir o enviar) o <strong>Descargar Excel</strong> (para editar en hoja de cálculo).</div></div>
+      <div class="step"><div class="num">4</div><div>El archivo se descargará automáticamente.</div></div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="break">
+    <h2>Preguntas frecuentes</h2>
+
+    <div class="faq-item">
+      <div class="q">¿Cada cuánto se actualiza la información?</div>
+      <div class="a">Automáticamente cada 30 segundos. No necesita recargar la página.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="q">¿Qué significa el punto verde "En vivo" en la esquina superior?</div>
+      <div class="a">Indica que el sistema está recibiendo datos correctamente. Si aparece "Reconectando…" en gris, es que se perdió la conexión momentáneamente — el sistema intentará reconectar solo, sin que usted tenga que hacer nada.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="q">¿Por qué el número de "Perdidas" es diferente al de "No contestadas"?</div>
+      <div class="a">Son dos situaciones distintas. <strong>Perdida</strong> = el cliente se fue antes de hablar con alguien. <strong>No contestada</strong> = el cliente esperó pero ningún agente tomó la llamada.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="q">¿Puedo ver llamadas de semanas o meses anteriores?</div>
+      <div class="a">Sí. Use la sección <strong>Histórico</strong> para consultar cualquier período pasado, o <strong>Analytics</strong> para ver tendencias y comparar períodos.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="q">No veo algunas opciones del menú.</div>
+      <div class="a">Probablemente su cuenta es de tipo Operador y no tiene acceso a las secciones de administración. Consulte con su administrador si necesita acceso a alguna función adicional.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="q">¿Cómo descargo los datos de un día específico?</div>
+      <div class="a">Vaya a <strong>Histórico</strong>, ponga la misma fecha en "Desde" y "Hasta", haga clic en Buscar y luego en <strong>Exportar CSV</strong>. También puede generar un PDF desde la sección <strong>Reportes</strong>.</div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
