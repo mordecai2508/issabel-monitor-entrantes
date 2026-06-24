@@ -23,7 +23,9 @@ const REPORT_TITLES = {
   trunks:     'Actividad de Troncales',
 };
 
-const RANKING_HEADERS  = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'];
+const RANKING_HEADERS_TRUNK      = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'];
+const RANKING_HEADERS_EXTENSIONS = ['Nombre', 'Llamadas contestadas', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (min)'];
+const RANKING_HEADERS  = RANKING_HEADERS_TRUNK; // backward-compat alias (used for trunk)
 const RANKING_ROW_KEYS = ['name', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration'];
 
 const DISPOSITION_LABELS  = { ANSWERED: 'Contestadas', 'NO ANSWER': 'No contestadas', BUSY: 'Ocupado', FAILED: 'Fallidas' };
@@ -563,11 +565,12 @@ function renderRankingBody(doc, data, _drawBarChart = drawBarChart, _drawMultiBa
   // Ranking table
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(`Ranking de ${label}`);
   doc.moveDown(0.2);
+  const rankingHeaders = type === 'extensions' ? RANKING_HEADERS_EXTENSIONS : RANKING_HEADERS_TRUNK;
   if (rankings.length === 0) {
     drawNoDataMessage(doc);
   } else {
     if (doc.y + 40 > doc.page.height - margin) doc.addPage();
-    drawTable(doc, RANKING_HEADERS, rankings, RANKING_ROW_KEYS);
+    drawTable(doc, rankingHeaders, rankings, RANKING_ROW_KEYS);
   }
 }
 
@@ -665,7 +668,7 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
 
     const wsExt = workbook.addWorksheet('Top Extensiones');
     writeXlsxHeaderBlock(wsExt, headerOpts);
-    writeXlsxTable(wsExt, RANKING_HEADERS, topExtensions, RANKING_ROW_KEYS);
+    writeXlsxTable(wsExt, RANKING_HEADERS_EXTENSIONS, topExtensions, RANKING_ROW_KEYS);
     await wsExt.commit();
 
     const wsTrunks = workbook.addWorksheet('Top Troncales');
@@ -718,10 +721,11 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
   } else {
     // extensions / trunks
     const { rankings } = data;
+    const xlsxRankingHeaders = type === 'extensions' ? RANKING_HEADERS_EXTENSIONS : RANKING_HEADERS_TRUNK;
 
     const wsRanking = workbook.addWorksheet('Ranking');
     writeXlsxHeaderBlock(wsRanking, headerOpts);
-    writeXlsxTable(wsRanking, RANKING_HEADERS, rankings, RANKING_ROW_KEYS);
+    writeXlsxTable(wsRanking, xlsxRankingHeaders, rankings, RANKING_ROW_KEYS);
     await wsRanking.commit();
 
     // Datos para gráfica — contestadas vs no contestadas por nombre (#28)

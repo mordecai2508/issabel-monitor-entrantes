@@ -41,6 +41,25 @@ function reclassifyCaseExprs(lostDests) {
   };
 }
 
+/**
+ * Build a WHERE fragment that restricts CDR rows to those where the agent
+ * actually answered the call, mirroring the reclassification logic.
+ * Returns { sql, params } to be appended to an existing WHERE clause.
+ *
+ * - lostDests empty  → AND disposition = 'ANSWERED'
+ * - lostDests present → AND dst NOT IN (?,…) AND UPPER(disposition) = 'ANSWERED'
+ */
+function answeredRowFilter(lostDests) {
+  if (!lostDests || lostDests.length === 0) {
+    return { sql: " AND disposition = 'ANSWERED'", params: [] };
+  }
+  const placeholders = lostDests.map(() => '?').join(',');
+  return {
+    sql: ` AND dst NOT IN (${placeholders}) AND UPPER(disposition) = 'ANSWERED'`,
+    params: [...lostDests],
+  };
+}
+
 function buildChannelCondition(configuredChannels) {
   const base = "channel NOT LIKE 'Local/%'";
   if (!configuredChannels || configuredChannels.length === 0) {
@@ -196,24 +215,26 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
   if (type === 'extension') {
     // Agents are identified by dstchannel: SIP/<ext>-<hex> or Agent/<ext>.
     // We extract the numeric extension and group by it to get per-agent stats.
+    // Only rows where the agent actually answered are included (answeredRowFilter).
+    const ansFilter = answeredRowFilter(lostDests);
     [rows] = await pool.query(
       `SELECT CASE
                 WHEN dstchannel LIKE 'Agent/%' THEN SUBSTRING(dstchannel, 7)
                 WHEN dstchannel LIKE 'SIP/%'   THEN SUBSTRING_INDEX(SUBSTRING(dstchannel, 5), '-', 1)
               END AS name,
-              COUNT(*)                    AS total,
-              ${answeredExpr}             AS answered,
-              ${noAnswerExpr}             AS no_answer,
-              SUM(disposition = 'BUSY')   AS busy,
-              SUM(disposition = 'FAILED') AS failed,
-              ROUND(AVG(duration), 2)     AS avg_duration
+              COUNT(*)                        AS total,
+              ${answeredExpr}                 AS answered,
+              ${noAnswerExpr}                 AS no_answer,
+              SUM(disposition = 'BUSY')       AS busy,
+              SUM(disposition = 'FAILED')     AS failed,
+              ROUND(AVG(billsec) / 60, 1)     AS avg_duration
        FROM cdr
        WHERE calldate >= ? AND calldate <= ?
-         AND dstchannel REGEXP ?
+         AND dstchannel REGEXP ?${ansFilter.sql}
        GROUP BY name
        ORDER BY total DESC
        LIMIT ?`,
-      [...extraParams, fromTs, toTs, AGENT_DSTCHANNEL_MYSQL, safeLimit]
+      [...extraParams, fromTs, toTs, AGENT_DSTCHANNEL_MYSQL, ...ansFilter.params, safeLimit]
     );
   } else {
     // trunk — filter to configured channels when provided
@@ -255,7 +276,7 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
     no_answer:    Number(r.no_answer),
     busy:         Number(r.busy),
     failed:       Number(r.failed),
-    avg_duration: Number(Number(r.avg_duration).toFixed(2)),
+    avg_duration: Number(Number(r.avg_duration).toFixed(1)),
   }));
 
   return { type, from, to, limit: safeLimit, rankings };

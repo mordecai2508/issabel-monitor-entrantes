@@ -396,6 +396,83 @@ describe('GET /api/stats/rankings', () => {
   });
 });
 
+// ── #42: analytics_agents_ranking_fix ────────────────────────────────────────
+
+describe('#42 — GET /api/stats/rankings?type=extension (solo contestadas, duración en min)', () => {
+
+  it('R1/R2 — type=extension: total === answered en cada agente del resultado', async () => {
+    // Simula que el backend ya solo devuelve filas contestadas (total = answered)
+    const rows = [
+      makeRankRow('1001', { total: '5', answered: '5', no_answer: '0', avg_duration: '3.2' }),
+      makeRankRow('1002', { total: '3', answered: '3', no_answer: '0', avg_duration: '2.0' }),
+    ];
+    const app = buildApp(jest.fn().mockResolvedValue([rows]));
+
+    const res = await request(app)
+      .get('/api/stats/rankings?from=2026-05-01&to=2026-05-31&type=extension');
+
+    expect(res.status).toBe(200);
+    for (const r of res.body.data.rankings) {
+      expect(r.total).toBe(r.answered);
+    }
+  });
+
+  it('R3 — avg_duration viene en minutos (1 decimal, valor numérico)', async () => {
+    // billsec=210 → AVG/60 = 3.5 min
+    const rows = [makeRankRow('1001', { avg_duration: '3.5' })];
+    const app = buildApp(jest.fn().mockResolvedValue([rows]));
+
+    const res = await request(app)
+      .get('/api/stats/rankings?from=2026-05-01&to=2026-05-31&type=extension');
+
+    expect(res.status).toBe(200);
+    const agent = res.body.data.rankings[0];
+    // valor numérico, 1 decimal
+    expect(typeof agent.avg_duration).toBe('number');
+    expect(agent.avg_duration).toBe(3.5);
+    // debe ser razonable como minutos (mucho menor que el equivalente en segundos)
+    expect(agent.avg_duration).toBeLessThan(60);
+  });
+
+  it('RCL1 — agente con 0 contestadas no aparece en el ranking', async () => {
+    // La query SQL ya filtra, así que el mock devuelve un array vacío
+    const rows = [];
+    const app = buildApp(jest.fn().mockResolvedValue([rows]));
+
+    const res = await request(app)
+      .get('/api/stats/rankings?from=2026-05-01&to=2026-05-31&type=extension');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.rankings).toEqual([]);
+  });
+
+  it('RCL2 — sin llamadas contestadas en el rango, rankings es []', async () => {
+    const app = buildApp(jest.fn().mockResolvedValue([[]]));
+
+    const res = await request(app)
+      .get('/api/stats/rankings?from=2026-05-01&to=2026-05-31&type=extension');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.rankings).toEqual([]);
+  });
+
+  it('RCL3 — type=trunk no se ve afectado por el cambio (sigue igual)', async () => {
+    // El trunk devuelve su avg_duration sin cambios
+    const rows = [makeRankRow('SIP/trunkal', { total: '10', answered: '7', avg_duration: '45.00' })];
+    const app = buildApp(jest.fn().mockResolvedValue([rows]));
+
+    const res = await request(app)
+      .get('/api/stats/rankings?from=2026-05-01&to=2026-05-31&type=trunk');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.type).toBe('trunk');
+    // El trunk puede tener total != answered (no se filtra)
+    const trunk = res.body.data.rankings[0];
+    expect(trunk.name).toBe('SIP/trunkal');
+    expect(typeof trunk.avg_duration).toBe('number');
+  });
+});
+
 // ── custom period with zero data ──────────────────────────────────────────────
 
 describe('GET /api/stats/historical (custom, no data)', () => {
