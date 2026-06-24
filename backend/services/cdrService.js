@@ -24,6 +24,10 @@ function buildWhereClause(filters, lostDests = []) {
   conditions.push('calldate <= ?');
   params.push(to + ' 23:59:59');
 
+  // Excluir canales internos: Local/ y extensiones SIP/PJSIP numéricas (ej. SIP/202-...)
+  conditions.push("channel NOT LIKE 'Local/%'");
+  conditions.push("channel NOT REGEXP '^(SIP|PJSIP)/[0-9]+'");
+
   if (channels && channels.length > 0) {
     const orParts = channels.map(() => "channel LIKE CONCAT(?, '%')");
     conditions.push(`(${orParts.join(' OR ')})`);

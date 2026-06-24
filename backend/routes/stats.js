@@ -13,12 +13,13 @@ function isValidDate(str) {
 }
 
 module.exports = function statsRouter(pool, config, requireAuth, db) {
-  const router           = express.Router();
-  const lostDests        = config.lostDestinations || [];
-  const configuredTrunks = [
+  const router             = express.Router();
+  const lostDests          = config.lostDestinations || [];
+  const configuredChannels = [
     ...(config.channels?.inbound  || []),
     ...(config.channels?.outbound || []),
   ];
+  const configuredTrunks = configuredChannels;
 
   // GET /api/stats/historical
   router.get('/stats/historical', requireAuth, async (req, res) => {
@@ -44,7 +45,7 @@ module.exports = function statsRouter(pool, config, requireAuth, db) {
     }
 
     try {
-      const result = await statsService.queryHistorical(pool, period, from, to, { lostDests });
+      const result = await statsService.queryHistorical(pool, period, from, to, { lostDests, configuredChannels });
       return res.json({ ok: true, data: result });
     } catch (err) {
       console.error('[stats] GET /stats/historical:', err.message);
@@ -74,7 +75,7 @@ module.exports = function statsRouter(pool, config, requireAuth, db) {
     }
 
     try {
-      const result = await statsService.queryCompare(pool, period1_from, period1_to, period2_from, period2_to, { lostDests });
+      const result = await statsService.queryCompare(pool, period1_from, period1_to, period2_from, period2_to, { lostDests, configuredChannels });
       return res.json({ ok: true, data: result });
     } catch (err) {
       console.error('[stats] GET /stats/compare:', err.message);

@@ -38,6 +38,18 @@ function reclassifyCaseExprs(lostDests) {
   };
 }
 
+function buildChannelCondition(configuredChannels) {
+  const base = "channel NOT LIKE 'Local/%'";
+  if (!configuredChannels || configuredChannels.length === 0) {
+    return { sql: ` AND ${base}`, params: [] };
+  }
+  const orParts = configuredChannels.map(() => "channel LIKE CONCAT(?, '%')");
+  return {
+    sql: ` AND ${base} AND (${orParts.join(' OR ')})`,
+    params: [...configuredChannels],
+  };
+}
+
 const PERIOD_GROUPINGS = {
   day:   { label: "DATE_FORMAT(calldate, '%Y-%m-%d')", groupBy: "DATE_FORMAT(calldate, '%Y-%m-%d')", orderBy: "period_label" },
   week:  { label: "DATE_FORMAT(calldate, '%x-W%v')",  groupBy: "DATE_FORMAT(calldate, '%x-%v')",   orderBy: "DATE_FORMAT(calldate, '%x-%v')" },
@@ -46,10 +58,11 @@ const PERIOD_GROUPINGS = {
 };
 
 async function queryHistorical(pool, period, from, to, opts = {}) {
-  const { lostDests = [] } = opts;
+  const { lostDests = [], configuredChannels = [] } = opts;
   const fromTs = from + ' 00:00:00';
   const toTs   = to   + ' 23:59:59';
   const { answeredExpr, noAnswerExpr, extraParams } = reclassifyCaseExprs(lostDests);
+  const chFilter = buildChannelCondition(configuredChannels);
 
   let rows;
 
@@ -61,8 +74,8 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
               SUM(disposition = 'BUSY')   AS busy,
               SUM(disposition = 'FAILED') AS failed,
               ROUND(AVG(duration), 2)     AS avg_duration
-       FROM cdr WHERE calldate >= ? AND calldate <= ?`,
-      [...extraParams, fromTs, toTs]
+       FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}`,
+      [...extraParams, fromTs, toTs, ...chFilter.params]
     );
   } else {
     const g = PERIOD_GROUPINGS[period];
@@ -74,10 +87,10 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
               SUM(disposition = 'BUSY')   AS busy,
               SUM(disposition = 'FAILED') AS failed,
               ROUND(AVG(duration), 2)     AS avg_duration
-       FROM cdr WHERE calldate >= ? AND calldate <= ?
+       FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}
        GROUP BY ${g.groupBy}
        ORDER BY ${g.orderBy} ASC`,
-      [...extraParams, fromTs, toTs]
+      [...extraParams, fromTs, toTs, ...chFilter.params]
     );
   }
 
@@ -113,8 +126,9 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
 }
 
 async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
-  const { lostDests = [] } = opts;
+  const { lostDests = [], configuredChannels = [] } = opts;
   const { answeredExpr, noAnswerExpr, extraParams } = reclassifyCaseExprs(lostDests);
+  const chFilter = buildChannelCondition(configuredChannels);
 
   const totalQuery =
     `SELECT COUNT(*) AS total,
@@ -123,11 +137,11 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
             SUM(disposition = 'BUSY')   AS busy,
             SUM(disposition = 'FAILED') AS failed,
             ROUND(AVG(duration), 2)     AS avg_duration
-     FROM cdr WHERE calldate >= ? AND calldate <= ?`;
+     FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}`;
 
   const [[rows1], [rows2]] = await Promise.all([
-    pool.query(totalQuery, [...extraParams, p1from + ' 00:00:00', p1to + ' 23:59:59']),
-    pool.query(totalQuery, [...extraParams, p2from + ' 00:00:00', p2to + ' 23:59:59']),
+    pool.query(totalQuery, [...extraParams, p1from + ' 00:00:00', p1to + ' 23:59:59', ...chFilter.params]),
+    pool.query(totalQuery, [...extraParams, p2from + ' 00:00:00', p2to + ' 23:59:59', ...chFilter.params]),
   ]);
 
   const r1 = rows1[0];

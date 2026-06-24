@@ -96,7 +96,12 @@ function passesFilter(channel, inboundChannels, outboundChannels, direction) {
     return inboundChannels.includes(ch);
   }
 
-  return true; // direction = null → todos
+  // direction = null → total: excluir internas (Local/) y restringir a canales configurados
+  if (ch.startsWith('Local/')) return false;
+  if (inboundChannels.length > 0 || outboundChannels.length > 0) {
+    return inboundChannels.includes(ch) || outboundChannels.includes(ch);
+  }
+  return true;
 }
 
 // ── Reclasificación de disposición (#17 lostDestinations + #21 agente) ──

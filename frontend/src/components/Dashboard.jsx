@@ -74,29 +74,6 @@ function QueueCard({ queue }) {
   );
 }
 
-function ExtensionsStatusCard({ data }) {
-  const { total, active, available } = data;
-
-  return (
-    <div
-      className={`card flex items-center justify-between ${available ? '' : 'opacity-50'}`}
-      title={available ? undefined : 'Estado de extensiones no disponible'}
-    >
-      <div>
-        <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Extensiones</p>
-        <p className="text-3xl font-bold text-slate-100">
-          <span className="text-emerald-400">{active}</span>
-          <span className="text-slate-500"> / </span>
-          <span>{total}</span>
-        </p>
-        <p className="text-xs text-slate-500 mt-1">activas / total</p>
-      </div>
-      <div className="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
-        <Users className="w-5 h-5 text-slate-400" />
-      </div>
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -204,8 +181,7 @@ export default function Dashboard() {
         <>
           {/* Stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Total llamadas" value={total} icon={Phone} color="blue"
-              hint="Cuenta todas las llamadas que pasaron por el sistema hoy, sin importar cómo terminaron. Es el punto de partida para ver el volumen del día." />
+            
             <StatCard label="Contestadas" value={answered} icon={PhoneCall} color="green"
               sub="del total" pct={answeredPct}
               hint="Llamadas en las que un agente atendió y hubo conversación real. Es el indicador principal de que los agentes están respondiendo." />
@@ -218,12 +194,7 @@ export default function Dashboard() {
               hint="Llamadas que llegaron a la cola de espera pero ningún agente las tomó a tiempo y el cliente colgó la llamada. El cliente esperó y no fue atendido." />
           </div>
 
-          {/* Estado de extensiones (AMI) — tarjeta combinada (#23) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ExtensionsStatusCard data={extensionsData} />
-          </div>
-
-          {/* Resumen de duración/canales */}
+          {/* Resumen de duración/canales/extensiones */}
           <div className="card flex flex-wrap items-center gap-8">
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider">Duración prom. contestadas</p>
@@ -238,6 +209,16 @@ export default function Dashboard() {
             <div>
               <p className="text-xs text-slate-500 uppercase tracking-wider">Canales activos hoy</p>
               <p className="text-2xl font-bold text-slate-100 mt-1">{channels.length}</p>
+            </div>
+            <div className="h-10 w-px bg-slate-700" />
+            <div className={extensionsData.available ? '' : 'opacity-50'} title={extensionsData.available ? undefined : 'Estado de extensiones no disponible (AMI)'}>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Extensiones</p>
+              <p className="text-2xl font-bold text-slate-100 mt-1">
+                <span className="text-emerald-400">{extensionsData.active}</span>
+                <span className="text-slate-500"> / </span>
+                <span>{extensionsData.total}</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">activas / total</p>
             </div>
           </div>
 
