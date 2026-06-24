@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
+import { extractAgentName, formatBillsec, dispositionLabel } from '../utils/callFormatters';
 
 // #37: la opción 'BUSY' se elimina porque BUSY se reclasifica a NO ANSWER en el backend
 const DISPOSITION_OPTIONS = [
@@ -10,13 +11,13 @@ const DISPOSITION_OPTIONS = [
 ];
 
 const COLUMNS = [
-  { key: 'calldate',    label: 'Fecha/Hora' },
-  { key: 'src',         label: 'Extensión' },
-  { key: 'dst',         label: 'Destino' },
-  { key: 'dstchannel',  label: 'Troncal' },
-  { key: 'duration',    label: 'Duración (s)' },
-  { key: 'billsec',     label: 'Seg. fact.' },
-  { key: 'disposition', label: 'Estado' },
+  { key: 'calldate',    label: 'Fecha/Hora'    },
+  { key: 'src',         label: 'Origen'        },
+  { key: 'dstchannel',  label: 'Troncal'       },
+  { key: 'dst',         label: 'Destino'       },
+  { key: 'channel',     label: 'Canal Destino' },
+  { key: 'billsec',     label: 'Duración'      },
+  { key: 'disposition', label: 'Estado'        },
 ];
 
 function dispositionBadge(disposition) {
@@ -318,13 +319,13 @@ export default function OutboundTable() {
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap text-slate-300">{row.calldate}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">{row.src}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">{row.dst}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-slate-400">{aliasMap[row.dstchannel] || row.dstchannel}</td>
-                      <td className="px-4 py-2.5 text-right">{row.duration}</td>
-                      <td className="px-4 py-2.5 text-right">{row.billsec}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">{row.dst}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">{extractAgentName(row.channel)}</td>
+                      <td className="px-4 py-2.5 text-right">{formatBillsec(row.billsec)}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className={`font-medium ${dispositionBadge(row.disposition)}`}>
-                          {row.disposition}
+                          {dispositionLabel(row.disposition)}
                         </span>
                       </td>
                     </tr>

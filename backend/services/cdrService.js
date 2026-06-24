@@ -231,6 +231,7 @@ function mapOutboundRow(row, extractChannelFn, lostDests = [], tzOffset = '+00:0
     calldate:    formatCalldateLocal(row.calldate, tzOffset),
     src:         row.src,
     dst:         row.dst,
+    channel:     row.channel || '',
     dstchannel:  extractChannelFn ? extractChannelFn(row.dstchannel || '') : (row.dstchannel || ''),
     duration:    Number(row.duration),
     billsec:     Number(row.billsec),
@@ -247,7 +248,7 @@ async function queryOutbound(pool, filters, pagination, outboundChannels, extrac
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countSql = `SELECT COUNT(*) AS total FROM cdr ${where}`;
-  const dataSql  = `SELECT calldate, src, dst, dstchannel, duration, billsec, disposition
+  const dataSql  = `SELECT calldate, src, dst, channel, dstchannel, duration, billsec, disposition
                     FROM cdr
                     ${where}
                     ORDER BY calldate DESC
@@ -272,7 +273,7 @@ async function queryOutboundExport(pool, filters, outboundChannels, extractChann
   const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const sql = `SELECT calldate, src, dst, dstchannel, duration, billsec, disposition
+  const sql = `SELECT calldate, src, dst, channel, dstchannel, duration, billsec, disposition
                FROM cdr
                ${where}
                ORDER BY calldate DESC

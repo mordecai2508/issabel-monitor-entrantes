@@ -3,6 +3,7 @@
 const express       = require('express');
 const cdrService    = require('../services/cdrService');
 const exportService = require('../services/exportService');
+const { extractAgentName, formatBillsec, dispositionLabel } = require('../services/callFormatters');
 const {
   OUTBOUND_XLSX_HEADERS,
   OUTBOUND_PDF_HEADERS,
@@ -145,7 +146,10 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
 
       const displayRows = rows.map(r => ({
         ...r,
-        dstchannel: channelAliases[r.dstchannel] || r.dstchannel,
+        dstchannel:        channelAliases[r.dstchannel] || r.dstchannel,
+        agentName:         extractAgentName(r.channel),
+        duration_fmt:      formatBillsec(r.billsec),
+        disposition_label: dispositionLabel(r.disposition),
       }));
       const displayFilters = {
         ...filters,

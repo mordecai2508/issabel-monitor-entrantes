@@ -5,13 +5,13 @@
 // para reutilizarlas en reportService/exportService sin duplicar literales.
 // No cambia el comportamiento de /api/calls/inbound/export ni /api/calls/outbound/export.
 
-const INBOUND_XLSX_HEADERS = ['Fecha/Hora', 'Origen', 'Destino', 'Troncal', 'Duración (s)', 'Seg. facturados', 'Estado'];
-const INBOUND_PDF_HEADERS  = ['Fecha/Hora', 'Origen', 'Destino', 'Troncal', 'Duración (s)', 'Seg. fact.', 'Estado'];
-const INBOUND_ROW_KEYS     = ['calldate', 'src', 'dst', 'channel', 'duration', 'billsec', 'disposition'];
+const INBOUND_XLSX_HEADERS = ['Fecha/Hora', 'Origen', 'Troncal', 'Destino', 'Canal Destino', 'Duración', 'Estado'];
+const INBOUND_PDF_HEADERS  = ['Fecha/Hora', 'Origen', 'Troncal', 'Destino', 'Canal Destino', 'Duración', 'Estado'];
+const INBOUND_ROW_KEYS     = ['calldate', 'src', 'channel', 'dst', 'agentName', 'duration_fmt', 'disposition_label'];
 
-const OUTBOUND_XLSX_HEADERS = ['Fecha/Hora', 'Extensión', 'Destino', 'Troncal', 'Duración (s)', 'Seg. facturados', 'Estado'];
-const OUTBOUND_PDF_HEADERS  = ['Fecha/Hora', 'Extensión', 'Destino', 'Troncal', 'Duración (s)', 'Seg. fact.', 'Estado'];
-const OUTBOUND_ROW_KEYS     = ['calldate', 'src', 'dst', 'dstchannel', 'duration', 'billsec', 'disposition'];
+const OUTBOUND_XLSX_HEADERS = ['Fecha/Hora', 'Origen', 'Troncal', 'Destino', 'Canal Destino', 'Duración', 'Estado'];
+const OUTBOUND_PDF_HEADERS  = ['Fecha/Hora', 'Origen', 'Troncal', 'Destino', 'Canal Destino', 'Duración', 'Estado'];
+const OUTBOUND_ROW_KEYS     = ['calldate', 'src', 'dstchannel', 'dst', 'agentName', 'duration_fmt', 'disposition_label'];
 
 module.exports = {
   INBOUND_XLSX_HEADERS,

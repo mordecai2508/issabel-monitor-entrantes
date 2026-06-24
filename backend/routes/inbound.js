@@ -3,6 +3,12 @@
 const express       = require('express');
 const cdrService    = require('../services/cdrService');
 const exportService = require('../services/exportService');
+const { extractAgentName, formatBillsec, dispositionLabel } = require('../services/callFormatters');
+const {
+  INBOUND_XLSX_HEADERS,
+  INBOUND_PDF_HEADERS,
+  INBOUND_ROW_KEYS,
+} = require('../services/reportConstants');
 
 const ALLOWED_DISPOSITIONS = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -137,7 +143,10 @@ module.exports = function inboundRouter(pool, config, requireAuth, extractChanne
       const channelAliases = config.channelAliases || {};
       const displayRows = rows.map(r => ({
         ...r,
-        channel: channelAliases[r.channel] || r.channel,
+        channel:           channelAliases[r.channel] || r.channel,
+        agentName:         extractAgentName(r.dstchannel),
+        duration_fmt:      formatBillsec(r.billsec),
+        disposition_label: dispositionLabel(r.disposition),
       }));
       const displayFilters = {
         ...filters,
@@ -145,9 +154,9 @@ module.exports = function inboundRouter(pool, config, requireAuth, extractChanne
       };
 
       if (format === 'xlsx') {
-        await exportService.toXlsx(displayRows, res, filenameBase, truncated);
+        await exportService.toXlsx(displayRows, res, filenameBase, truncated, INBOUND_XLSX_HEADERS, 'Entrantes');
       } else {
-        exportService.toPdf(displayRows, res, filenameBase, displayFilters, truncated);
+        exportService.toPdf(displayRows, res, filenameBase, displayFilters, truncated, 'Llamadas Entrantes — Búsqueda', INBOUND_PDF_HEADERS, INBOUND_ROW_KEYS);
       }
     } catch (err) {
       console.error('[inbound] GET /calls/inbound/export:', err.message);
