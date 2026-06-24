@@ -71,8 +71,6 @@ export function ChannelTable({ channels, channelAliases = {} }) {
             <SortHeader col="ANSWERED"     label="Contest." />
             <SortHeader col="ivr_hangup"   label="Perdidas" />
             <SortHeader col="unanswered"   label="No Contest." />
-            <SortHeader col="BUSY"         label="Ocupado" />
-            <SortHeader col="FAILED"       label="Fallidas" />
             <SortHeader col="total_billsec" label="Tiempo" />
           </tr>
         </thead>
@@ -96,14 +94,6 @@ export function ChannelTable({ channels, channelAliases = {} }) {
               <td className="py-2.5 text-right">
                 <span className="text-amber-400">{ch.unanswered}</span>
                 <span className="text-slate-600 text-xs ml-1">({pct(ch.unanswered, ch.total)})</span>
-              </td>
-              <td className="py-2.5 text-right">
-                <span className="text-red-400">{ch.BUSY}</span>
-                <span className="text-slate-600 text-xs ml-1">({pct(ch.BUSY, ch.total)})</span>
-              </td>
-              <td className="py-2.5 text-right">
-                <span className="text-slate-400">{ch.FAILED}</span>
-                <span className="text-slate-600 text-xs ml-1">({pct(ch.FAILED, ch.total)})</span>
               </td>
               <td className="py-2.5 text-right text-slate-400">{fmtDuration(ch.total_billsec)}</td>
             </tr>
