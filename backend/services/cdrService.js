@@ -74,12 +74,41 @@ function buildWhereClause(filters, lostDests = []) {
   return { conditions, params };
 }
 
-function mapRow(row, extractChannelFn, lostDests = []) {
+/**
+ * Convierte un valor calldate (objeto Date de mysql2 o string ISO) al
+ * formato 'YYYY-MM-DD HH:MM:SS' usando el offset de timezone del servidor.
+ *
+ * @param {Date|string} value    - El valor crudo de mysql2
+ * @param {string}      tzOffset - Ej: "-05:00", "+00:00". Default: "+00:00"
+ * @returns {string}  Ej: "2026-06-24 17:30:34"
+ */
+function formatCalldateLocal(value, tzOffset) {
+  // 1. Obtener el timestamp Unix en ms
+  const ts = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  if (isNaN(ts)) return String(value); // fallback: devolver tal cual
+
+  // 2. Parsear el offset "-05:00" → -300 minutos
+  const tz = (tzOffset || '+00:00').trim() || '+00:00';
+  const sign = tz.startsWith('-') ? -1 : 1;
+  const [hh, mm] = tz.replace(/^[+-]/, '').split(':').map(Number);
+  const offsetMinutes = sign * (hh * 60 + (mm || 0));
+
+  // 3. Ajustar el timestamp UTC con el offset para obtener la hora local
+  const localTs = ts + offsetMinutes * 60 * 1000;
+
+  // 4. Formatear usando Date en UTC (así evitamos interferencia del timezone del proceso Node)
+  const d = new Date(localTs);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ` +
+         `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+function mapRow(row, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const disp = lostDests.length > 0
     ? resolveDispositionLocal(row.disposition, row.dst, row.dstchannel || '', lostDests)
     : row.disposition;
   return {
-    calldate:    row.calldate instanceof Date ? row.calldate.toISOString() : row.calldate,
+    calldate:    formatCalldateLocal(row.calldate, tzOffset),
     src:         row.src,
     dst:         row.dst,
     channel:     extractChannelFn(row.channel),
@@ -90,7 +119,7 @@ function mapRow(row, extractChannelFn, lostDests = []) {
   };
 }
 
-async function queryInbound(pool, filters, pagination, extractChannelFn, lostDests = []) {
+async function queryInbound(pool, filters, pagination, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const page  = Number(pagination.page)  || 1;
   const limit = Number(pagination.limit) || 100;
   const offset = (page - 1) * limit;
@@ -111,7 +140,7 @@ async function queryInbound(pool, filters, pagination, extractChannelFn, lostDes
   const dataParams = [...params, limit, offset];
   const [dataRows] = await pool.query(dataSql, dataParams);
 
-  const rows = dataRows.map(r => mapRow(r, extractChannelFn, lostDests));
+  const rows = dataRows.map(r => mapRow(r, extractChannelFn, lostDests, tzOffset));
   const totalPages = Math.ceil(total / limit);
 
   return {
@@ -120,7 +149,7 @@ async function queryInbound(pool, filters, pagination, extractChannelFn, lostDes
   };
 }
 
-async function queryInboundExport(pool, filters, extractChannelFn, lostDests = []) {
+async function queryInboundExport(pool, filters, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const { conditions, params } = buildWhereClause(filters, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -131,7 +160,7 @@ async function queryInboundExport(pool, filters, extractChannelFn, lostDests = [
                LIMIT ${MAX_EXPORT_ROWS}`;
 
   const [rows] = await pool.query(sql, params);
-  return rows.map(r => mapRow(r, extractChannelFn, lostDests));
+  return rows.map(r => mapRow(r, extractChannelFn, lostDests, tzOffset));
 }
 
 function buildOutboundWhereClause(filters, outboundChannels, lostDests = []) {
@@ -194,12 +223,12 @@ function buildOutboundWhereClause(filters, outboundChannels, lostDests = []) {
   return { conditions, params };
 }
 
-function mapOutboundRow(row, extractChannelFn, lostDests = []) {
+function mapOutboundRow(row, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const disp = lostDests.length > 0
     ? resolveDispositionLocal(row.disposition, row.dst, row.dstchannel || '', lostDests)
     : row.disposition;
   return {
-    calldate:    row.calldate instanceof Date ? row.calldate.toISOString() : row.calldate,
+    calldate:    formatCalldateLocal(row.calldate, tzOffset),
     src:         row.src,
     dst:         row.dst,
     dstchannel:  extractChannelFn ? extractChannelFn(row.dstchannel || '') : (row.dstchannel || ''),
@@ -209,7 +238,7 @@ function mapOutboundRow(row, extractChannelFn, lostDests = []) {
   };
 }
 
-async function queryOutbound(pool, filters, pagination, outboundChannels, extractChannelFn, lostDests = []) {
+async function queryOutbound(pool, filters, pagination, outboundChannels, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const page   = Number(pagination.page)  || 1;
   const limit  = Number(pagination.limit) || 100;
   const offset = (page - 1) * limit;
@@ -230,7 +259,7 @@ async function queryOutbound(pool, filters, pagination, outboundChannels, extrac
   const dataParams = [...params, limit, offset];
   const [dataRows] = await pool.query(dataSql, dataParams);
 
-  const rows = dataRows.map(r => mapOutboundRow(r, extractChannelFn, lostDests));
+  const rows = dataRows.map(r => mapOutboundRow(r, extractChannelFn, lostDests, tzOffset));
   const totalPages = Math.ceil(total / limit);
 
   return {
@@ -239,7 +268,7 @@ async function queryOutbound(pool, filters, pagination, outboundChannels, extrac
   };
 }
 
-async function queryOutboundExport(pool, filters, outboundChannels, extractChannelFn, lostDests = []) {
+async function queryOutboundExport(pool, filters, outboundChannels, extractChannelFn, lostDests = [], tzOffset = '+00:00') {
   const { conditions, params } = buildOutboundWhereClause(filters, outboundChannels, lostDests);
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -250,7 +279,7 @@ async function queryOutboundExport(pool, filters, outboundChannels, extractChann
                LIMIT ${MAX_EXPORT_ROWS}`;
 
   const [rows] = await pool.query(sql, params);
-  return rows.map(r => mapOutboundRow(r, extractChannelFn, lostDests));
+  return rows.map(r => mapOutboundRow(r, extractChannelFn, lostDests, tzOffset));
 }
 
 module.exports = {
@@ -259,4 +288,8 @@ module.exports = {
   queryOutbound,
   queryOutboundExport,
   MAX_EXPORT_ROWS,
+  // Exported for testing
+  formatCalldateLocal,
+  mapRow,
+  mapOutboundRow,
 };

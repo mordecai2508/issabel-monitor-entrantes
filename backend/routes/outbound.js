@@ -37,6 +37,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
   const outboundChannels = (config.channels && config.channels.outbound) || [];
   const lostDests        = config.lostDestinations || [];
   const channelAliases   = config.channelAliases   || {};
+  const tzOffset         = (config.db && config.db.timezone) || '+00:00';
 
   // ── GET /api/calls/outbound ────────────────────────────────────────
   router.get('/calls/outbound', requireAuth, async (req, res) => {
@@ -88,7 +89,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
       };
 
       const { rows: data, meta } = await cdrService.queryOutbound(
-        pool, filters, { page, limit }, outboundChannels, extractChannel, lostDests
+        pool, filters, { page, limit }, outboundChannels, extractChannel, lostDests, tzOffset
       );
 
       res.json({ ok: true, data, meta });
@@ -138,7 +139,7 @@ module.exports = function outboundRouter(pool, config, requireAuth, extractChann
         disposition: disposition ? disposition.toUpperCase() : null,
       };
 
-      const rows = await cdrService.queryOutboundExport(pool, filters, outboundChannels, extractChannel, lostDests);
+      const rows = await cdrService.queryOutboundExport(pool, filters, outboundChannels, extractChannel, lostDests, tzOffset);
       const truncated    = rows.length >= cdrService.MAX_EXPORT_ROWS;
       const filenameBase = `salientes_${filters.from}_${filters.to}`;
 
