@@ -5,7 +5,7 @@ import { DispositionChart } from './DispositionChart';
 import { HourlyChart } from './HourlyChart';
 import { ChannelTable } from './ChannelTable';
 import { StatCard } from './StatCard';
-import { Phone, PhoneCall, PhoneMissed } from 'lucide-react';
+import { Phone, PhoneCall, PhoneMissed, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -69,6 +69,11 @@ export default function HistoricalView() {
   const lostOffhours    = noAnswerBreakdown.ivr_hangup_offhours ?? 0;
   const lostBusinessPct = total > 0 ? Math.round((lostBusiness / total) * 1000) / 10 : 0;
   const lostOffhoursPct = total > 0 ? Math.round((lostOffhours / total) * 1000) / 10 : 0;
+
+  const inboundTotal  = data?.inbound?.stats?.total  ?? 0;
+  const outboundTotal = data?.outbound?.stats?.total ?? 0;
+  const inboundPct  = total > 0 ? Math.round((inboundTotal  / total) * 1000) / 10 : 0;
+  const outboundPct = total > 0 ? Math.round((outboundTotal / total) * 1000) / 10 : 0;
 
   function exportCSV() {
     if (!channels.length) return;
@@ -156,10 +161,12 @@ export default function HistoricalView() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 gap-4 ${businessHours ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <StatCard label="Total"          value={total}    icon={Phone}       color="blue" />
             <StatCard label="Contestadas"    value={answered} icon={PhoneCall}   color="green"
               sub="del total" pct={answeredPct} />
+            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
+              sub="del total" pct={noAnswerPct} />
             {businessHours ? (
               <>
                 <StatCard
@@ -192,8 +199,16 @@ export default function HistoricalView() {
                 hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien."
               />
             )}
-            <StatCard label="No Contestadas" value={noAnswer} icon={PhoneMissed} color="amber"
-              sub="del total" pct={noAnswerPct} />
+          </div>
+
+          {/* Desglose Entrantes / Salientes */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <StatCard label="Llamadas entrantes" value={inboundTotal} icon={PhoneIncoming} color="blue"
+              sub="del total" pct={inboundPct}
+              hint="Total de llamadas que llegaron desde el exterior en el período seleccionado." />
+            <StatCard label="Llamadas salientes" value={outboundTotal} icon={PhoneOutgoing} color="blue"
+              sub="del total" pct={outboundPct}
+              hint="Total de llamadas realizadas hacia el exterior en el período seleccionado." />
           </div>
 
           {/* Gráficas */}
