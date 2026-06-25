@@ -280,18 +280,19 @@ async function queryChannels(pool, from, to, inboundChannels, outboundChannels, 
   return Object.values(map).sort((a, b) => b.total - a.total);
 }
 
-async function queryHourly(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup']) {
+async function queryHourly(pool, from, to, inboundChannels, outboundChannels, direction = 'in', lostDests = ['s', 'hang', 'hangup'], businessHours = null) {
   const [rows] = await pool.query(
     `SELECT
        channel,
        dst,
        dstchannel,
-       HOUR(calldate) AS hour,
+       HOUR(calldate)      AS hour,
+       DAYOFWEEK(calldate) AS call_dow,
        disposition,
-       COUNT(*)       AS count
+       COUNT(*)            AS count
      FROM cdr
      WHERE calldate >= ? AND calldate < ?
-     GROUP BY channel, dst, dstchannel, HOUR(calldate), disposition
+     GROUP BY channel, dst, dstchannel, HOUR(calldate), DAYOFWEEK(calldate), disposition
      ORDER BY hour`,
     [from, to]
   );
@@ -299,7 +300,7 @@ async function queryHourly(pool, from, to, inboundChannels, outboundChannels, di
   const hours = Array.from({ length: 24 }, (_, i) => ({
     hour: i,
     ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0, total: 0,
-    breakdown: { ivr_hangup: 0, queue_no_agent: 0, no_answer: 0 },
+    breakdown: { ivr_hangup: 0, queue_no_agent: 0, no_answer: 0, ivr_hangup_business: 0, ivr_hangup_offhours: 0 },
   }));
 
   for (const r of rows) {
@@ -312,6 +313,11 @@ async function queryHourly(pool, from, to, inboundChannels, outboundChannels, di
       if (targetKey === 'NO ANSWER') {
         const reason = classifyUnansweredReason(r, lostDests);
         hours[h].breakdown[reason] += Number(r.count);
+        if (reason === 'ivr_hangup') {
+          const inHours = isWithinBusinessHours(Number(r.hour), Number(r.call_dow), businessHours);
+          if (inHours === true)  hours[h].breakdown.ivr_hangup_business += Number(r.count);
+          if (inHours === false) hours[h].breakdown.ivr_hangup_offhours += Number(r.count);
+        }
       }
     }
     hours[h].total += Number(r.count);
@@ -546,10 +552,10 @@ async function startServer() {
     ] = await Promise.all([
       queryStats(pool, from, to, inboundChannels, outboundChannels, null,  lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
-      queryHourly(pool, from, to, inboundChannels, outboundChannels, null, lostDests),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, null, lostDests, businessHours),
       queryStats(pool, from, to, inboundChannels, outboundChannels, 'in',  lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
-      queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests),
+      queryHourly(pool, from, to, inboundChannels, outboundChannels, 'in', lostDests, businessHours),
       queryStats(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests, businessHours),
       queryChannels(pool, from, to, inboundChannels, outboundChannels, 'out', lostDests),
       queryQueues(pool, from, to, inboundChannels, outboundChannels, configQueues, lostDests),

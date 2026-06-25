@@ -3,25 +3,32 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 
-export function HourlyChart({ hourly }) {
+export function HourlyChart({ hourly, businessHours }) {
   if (!hourly) return null;
 
   const data = hourly.map(h => {
     const breakdown = h.breakdown ?? {};
-    return {
-      hora:        `${String(h.hour).padStart(2, '0')}h`,
-      Contestadas: h.ANSWERED,
-      Perdidas:    breakdown.ivr_hangup ?? 0,
+    const base = {
+      hora:          `${String(h.hour).padStart(2, '0')}h`,
+      Contestadas:   h.ANSWERED,
       'No Contest.': (breakdown.no_answer ?? 0) + (breakdown.queue_no_agent ?? 0),
-      Ocupado:     h.BUSY,
-      Fallidas:    h.FAILED,
     };
+    if (businessHours) {
+      base['Perdidas en horario']       = breakdown.ivr_hangup_business ?? 0;
+      base['Perdidas fuera de horario'] = breakdown.ivr_hangup_offhours ?? 0;
+    } else {
+      base['Perdidas'] = breakdown.ivr_hangup ?? 0;
+    }
+    return base;
   });
 
-  const total = data.reduce(
-    (s, d) => s + d.Contestadas + d.Perdidas + d['No Contest.'] + d.Ocupado + d.Fallidas,
-    0
-  );
+  const total = data.reduce((s, d) => {
+    const lostSum = businessHours
+      ? (d['Perdidas en horario'] ?? 0) + (d['Perdidas fuera de horario'] ?? 0)
+      : (d['Perdidas'] ?? 0);
+    return s + d.Contestadas + d['No Contest.'] + lostSum;
+  }, 0);
+
   if (total === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-slate-500 text-sm">
@@ -42,10 +49,15 @@ export function HourlyChart({ hourly }) {
         />
         <Legend formatter={(v) => <span style={{ color: '#94a3b8', fontSize: 12 }}>{v}</span>} />
         <Bar dataKey="Contestadas"  stackId="a" fill="#22c55e" radius={[0,0,0,0]} />
-        <Bar dataKey="Perdidas"     stackId="a" fill="#ef4444" />
-        <Bar dataKey="No Contest."  stackId="a" fill="#f59e0b" />
-        <Bar dataKey="Ocupado"      stackId="a" fill="#f97316" />
-        <Bar dataKey="Fallidas"     stackId="a" fill="#6b7280" radius={[3,3,0,0]} />
+        {businessHours ? (
+          <>
+            <Bar dataKey="Perdidas en horario"       stackId="a" fill="#ef4444" />
+            <Bar dataKey="Perdidas fuera de horario" stackId="a" fill="#64748b" />
+          </>
+        ) : (
+          <Bar dataKey="Perdidas" stackId="a" fill="#ef4444" />
+        )}
+        <Bar dataKey="No Contest."  stackId="a" fill="#f59e0b" radius={[3,3,0,0]} />
       </BarChart>
     </ResponsiveContainer>
   );

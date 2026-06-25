@@ -200,11 +200,11 @@ export default function HistoricalView() {
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             <div className="card lg:col-span-2">
               <h2 className="text-sm font-semibold text-slate-200 mb-4">Distribución</h2>
-              <DispositionChart dispositions={disp} />
+              <DispositionChart dispositions={disp} businessHours={businessHours} />
             </div>
             <div className="card lg:col-span-3">
               <h2 className="text-sm font-semibold text-slate-200 mb-4">Distribución por hora</h2>
-              <HourlyChart hourly={hourly} />
+              <HourlyChart hourly={hourly} businessHours={businessHours} />
             </div>
           </div>
 

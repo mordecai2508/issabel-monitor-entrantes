@@ -1,11 +1,11 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const COLORS = {
-  'Contestadas': '#22c55e',
-  'Perdidas':    '#ef4444',
-  'No Contest.': '#f59e0b',
-  'Ocupado':     '#f97316',
-  'Fallidas':    '#6b7280',
+  'Contestadas':             '#22c55e',
+  'Perdidas':                '#ef4444',
+  'Perdidas en horario':     '#ef4444',
+  'Perdidas fuera de horario': '#64748b',
+  'No Contest.':             '#f59e0b',
 };
 
 const RADIAN = Math.PI / 180;
@@ -21,17 +21,24 @@ function renderCustomLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent
   );
 }
 
-export function DispositionChart({ dispositions }) {
+export function DispositionChart({ dispositions, businessHours }) {
   const breakdown = dispositions?.['NO ANSWER']?.breakdown ?? {};
-  const lost      = breakdown.ivr_hangup ?? 0;
-  const noAnswer  = (breakdown.no_answer ?? 0) + (breakdown.queue_no_agent ?? 0);
+  const lost          = breakdown.ivr_hangup         ?? 0;
+  const lostBusiness  = breakdown.ivr_hangup_business ?? 0;
+  const lostOffhours  = breakdown.ivr_hangup_offhours ?? 0;
+  const noAnswer = (breakdown.no_answer ?? 0) + (breakdown.queue_no_agent ?? 0);
+
+  const lostEntries = businessHours
+    ? [
+        { name: 'Perdidas en horario',       value: lostBusiness },
+        { name: 'Perdidas fuera de horario', value: lostOffhours },
+      ]
+    : [{ name: 'Perdidas', value: lost }];
 
   const data = [
     { name: 'Contestadas', value: dispositions?.ANSWERED?.count ?? 0 },
-    { name: 'Perdidas',    value: lost },
+    ...lostEntries,
     { name: 'No Contest.', value: noAnswer },
-    { name: 'Ocupado',     value: dispositions?.BUSY?.count ?? 0 },
-    { name: 'Fallidas',    value: dispositions?.FAILED?.count ?? 0 },
   ].filter(d => d.value > 0);
 
   const total = data.reduce((s, d) => s + d.value, 0);
