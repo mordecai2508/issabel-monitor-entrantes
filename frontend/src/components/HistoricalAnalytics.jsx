@@ -417,11 +417,9 @@ function RankingsSection() {
                   <th className="text-right py-2 px-3 text-slate-400 font-medium">
                     {rankType === 'extension' ? 'Llamadas contestadas' : 'Total de llamadas'}
                   </th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas Contestadas</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas No cont.</th>
-                  <th className="text-right py-2 px-3 text-slate-400 font-medium">
-                    {rankType === 'extension' ? 'Dur. media (min)' : 'Dur. media (s)'}
-                  </th>
+                  {rankType !== 'extension' && <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas Contestadas</th>}
+                  {rankType !== 'extension' && <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas No cont.</th>}
+                  <th className="text-right py-2 px-3 text-slate-400 font-medium">Dur. media (min)</th>
                 </tr>
               </thead>
               <tbody>
@@ -429,13 +427,15 @@ function RankingsSection() {
                   <tr key={idx} className="border-b border-slate-800 hover:bg-slate-700/30">
                     <td className="py-2 px-3 text-slate-500">{idx + 1}</td>
                     <td className="py-2 px-3 text-slate-200 font-mono text-xs">{row.name}</td>
-                    <td className="py-2 px-3 text-right text-slate-200">{row.total}</td>
-                    <td className="py-2 px-3 text-right text-green-400">{row.answered}</td>
-                    <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>
+                    <td className="py-2 px-3 text-right text-slate-200">
+                      {rankType === 'extension' ? row.answered : row.total}
+                    </td>
+                    {rankType !== 'extension' && <td className="py-2 px-3 text-right text-green-400">{row.answered}</td>}
+                    {rankType !== 'extension' && <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>}
                     <td className="py-2 px-3 text-right text-slate-300">
                       {rankType === 'extension'
                         ? `${row.avg_duration} min`
-                        : `${row.avg_duration} s`}
+                        : `${(row.avg_duration / 60).toFixed(1)} min`}
                     </td>
                   </tr>
                 ))}
