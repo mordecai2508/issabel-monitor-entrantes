@@ -835,7 +835,7 @@
       "title": "Reportes: excluir BUSY/FAILED, llamadas internas y duración en minutos",
       "description": "Los reportes no deben mostrar llamadas fallidas ni ocupadas (BUSY → NO ANSWER, FAILED excluido). Excluir llamadas internas (solo canales configurados). Duración media en minutos en todos los resumenes.",
       "sdd": true,
-      "status": "in_progress"
+      "status": "done"
     }
   ]
 }
