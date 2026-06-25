@@ -326,20 +326,29 @@ function CompareSection() {
 
 // ── Sección Rankings ──────────────────────────────────────────────────────────
 
-function RankingsSection() {
-  const [rankType, setRankType] = useState('extension');
-  const [from,     setFrom]     = useState(() => getDateRangeForPeriod('month').from);
-  const [to,       setTo]       = useState(() => getDateRangeForPeriod('month').to);
-  const [limit,    setLimit]    = useState(10);
-  const [data,     setData]     = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState(null);
+function RankingCard({ type }) {
+  const [period,  setPeriod]  = useState('month');
+  const [from,    setFrom]    = useState(() => getDateRangeForPeriod('month').from);
+  const [to,      setTo]      = useState(() => getDateRangeForPeriod('month').to);
+  const [limit,   setLimit]   = useState(10);
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
+
+  function handlePeriodChange(p) {
+    setPeriod(p);
+    if (p !== 'custom') {
+      const range = getDateRangeForPeriod(p);
+      setFrom(range.from);
+      setTo(range.to);
+    }
+  }
 
   async function handleQuery() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.statsRankings({ from, to, type: rankType, limit });
+      const result = await api.statsRankings({ from, to, type, limit });
       setData(result.data);
     } catch (err) {
       setError(err.message || 'Error al obtener datos');
@@ -348,60 +357,34 @@ function RankingsSection() {
     }
   }
 
-  const inputCls = 'bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 focus:outline-none focus:border-blue-500';
+  const title = type === 'trunk' ? 'Ranking de troncales' : 'Ranking de agentes';
+  const isTrunk = type === 'trunk';
 
   return (
     <section className="bg-slate-800/50 rounded-xl p-5 space-y-4">
-      <h2 className="text-base font-semibold text-slate-100">
-        {rankType === 'extension' ? 'Ranking de agentes' : 'Ranking de troncales'}
-      </h2>
+      <h2 className="text-base font-semibold text-slate-100">{title}</h2>
 
-      <div className="flex flex-wrap items-end gap-4">
-        {/* Toggle type */}
-        <div className="flex gap-1">
-          {['extension', 'trunk'].map(t => (
-            <button
-              key={t}
-              onClick={() => setRankType(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                rankType === t
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
-            >
-              {t === 'extension' ? 'Agentes' : 'Troncales'}
-            </button>
-          ))}
-        </div>
+      <PeriodSelector
+        period={period}
+        from={from}
+        to={to}
+        onPeriodChange={handlePeriodChange}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onQuery={handleQuery}
+        loading={loading}
+      />
 
-        {/* Date range */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Desde</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls} />
-          <label className="text-xs text-slate-400">Hasta</label>
-          <input type="date" value={to}   onChange={e => setTo(e.target.value)}   className={inputCls} />
-        </div>
-
-        {/* Limit */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Top</label>
-          <input
-            type="number"
-            min="1"
-            max="50"
-            value={limit}
-            onChange={e => setLimit(Number(e.target.value))}
-            className={`${inputCls} w-16`}
-          />
-        </div>
-
-        <button
-          onClick={handleQuery}
-          disabled={loading || !from || !to}
-          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          Consultar
-        </button>
+      <div className="flex items-center gap-2">
+        <label className="text-xs text-slate-400">Top</label>
+        <input
+          type="number"
+          min="1"
+          max="50"
+          value={limit}
+          onChange={e => setLimit(Number(e.target.value))}
+          className="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 w-16 focus:outline-none focus:border-blue-500"
+        />
       </div>
 
       {loading && <Spinner />}
@@ -417,13 +400,13 @@ function RankingsSection() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  <th className="text-left py-2 px-3 text-slate-400 font-medium">#</th>
-                  <th className="text-left py-2 px-3 text-slate-400 font-medium">Nombre</th>
+                  <th className="text-left  py-2 px-3 text-slate-400 font-medium">#</th>
+                  <th className="text-left  py-2 px-3 text-slate-400 font-medium">Nombre</th>
+                  {isTrunk && <th className="text-right py-2 px-3 text-slate-400 font-medium">Total</th>}
                   <th className="text-right py-2 px-3 text-slate-400 font-medium">
-                    {rankType === 'extension' ? 'Llamadas contestadas' : 'Total de llamadas'}
+                    {isTrunk ? 'Contestadas' : 'Llamadas contestadas'}
                   </th>
-                  {rankType !== 'extension' && <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas Contestadas</th>}
-                  {rankType !== 'extension' && <th className="text-right py-2 px-3 text-slate-400 font-medium">Llamadas No cont.</th>}
+                  {isTrunk && <th className="text-right py-2 px-3 text-slate-400 font-medium">No cont.</th>}
                   <th className="text-right py-2 px-3 text-slate-400 font-medium">Dur. media (min)</th>
                 </tr>
               </thead>
@@ -432,15 +415,13 @@ function RankingsSection() {
                   <tr key={idx} className="border-b border-slate-800 hover:bg-slate-700/30">
                     <td className="py-2 px-3 text-slate-500">{idx + 1}</td>
                     <td className="py-2 px-3 text-slate-200 font-mono text-xs">{row.name}</td>
-                    <td className="py-2 px-3 text-right text-slate-200">
-                      {rankType === 'extension' ? row.answered : row.total}
-                    </td>
-                    {rankType !== 'extension' && <td className="py-2 px-3 text-right text-green-400">{row.answered}</td>}
-                    {rankType !== 'extension' && <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>}
+                    {isTrunk && <td className="py-2 px-3 text-right text-slate-200">{row.total}</td>}
+                    <td className="py-2 px-3 text-right text-slate-200">{row.answered}</td>
+                    {isTrunk && <td className="py-2 px-3 text-right text-amber-400">{row.no_answer}</td>}
                     <td className="py-2 px-3 text-right text-slate-300">
-                      {rankType === 'extension'
-                        ? `${row.avg_duration} min`
-                        : `${(row.avg_duration / 60).toFixed(1)} min`}
+                      {isTrunk
+                        ? `${(row.avg_duration / 60).toFixed(1)} min`
+                        : `${row.avg_duration} min`}
                     </td>
                   </tr>
                 ))}
@@ -450,6 +431,15 @@ function RankingsSection() {
         )
       )}
     </section>
+  );
+}
+
+function RankingsSection() {
+  return (
+    <>
+      <RankingCard type="trunk" />
+      <RankingCard type="extension" />
+    </>
   );
 }
 
