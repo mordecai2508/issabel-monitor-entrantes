@@ -23,13 +23,15 @@ const REPORT_TITLES = {
   trunks:     'Actividad de Troncales',
 };
 
-const RANKING_HEADERS_TRUNK      = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'];
-const RANKING_HEADERS_EXTENSIONS = ['Nombre', 'Llamadas contestadas', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (min)'];
-const RANKING_HEADERS  = RANKING_HEADERS_TRUNK; // backward-compat alias (used for trunk)
-const RANKING_ROW_KEYS = ['name', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration'];
+const RANKING_HEADERS_TRUNK      = ['Nombre', 'Total', 'Contestadas', 'No contestadas', 'Dur. media (min)'];
+const RANKING_HEADERS_EXTENSIONS = ['Nombre', 'Llamadas contestadas', 'Dur. media (min)'];
+const RANKING_HEADERS  = RANKING_HEADERS_TRUNK; // backward-compat alias
+const RANKING_ROW_KEYS_TRUNK      = ['name', 'total', 'answered', 'no_answer', 'avg_duration'];
+const RANKING_ROW_KEYS_EXTENSIONS = ['name', 'answered', 'avg_duration'];
+const RANKING_ROW_KEYS = RANKING_ROW_KEYS_TRUNK; // backward-compat alias
 
-const DISPOSITION_LABELS  = { ANSWERED: 'Contestadas', 'NO ANSWER': 'No contestadas', BUSY: 'Ocupado', FAILED: 'Fallidas' };
-const DISPOSITIONS_ORDER  = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
+const DISPOSITION_LABELS  = { ANSWERED: 'Contestadas', 'NO ANSWER': 'No contestadas' };
+const DISPOSITIONS_ORDER  = ['ANSWERED', 'NO ANSWER'];
 const MULTI_COLORS_DEFAULT = ['#3b82f6', '#f59e0b', '#10b981', '#ef4444'];
 
 /**
@@ -353,17 +355,15 @@ function renderExecutiveBody(doc, data, _drawBarChart = drawBarChart, _drawMulti
   doc.text(`Total de llamadas: ${overallTotals.total}`);
   doc.text(`Contestadas: ${overallTotals.answered}`);
   doc.text(`No contestadas: ${overallTotals.no_answer}`);
-  doc.text(`Ocupado: ${overallTotals.busy}`);
-  doc.text(`Fallidas: ${overallTotals.failed}`);
-  doc.text(`Duración media (s): ${overallTotals.avg_duration}`);
+  doc.text(`Duración media (min): ${overallTotals.avg_duration}`);
   doc.moveDown(0.3);
   doc.fontSize(9).font('Helvetica-Bold').fillColor('#1e3a5f').text('Entrantes');
   doc.fontSize(9).font('Helvetica').fillColor('#111111')
-    .text(`Total: ${inboundTotals.total} | Contestadas: ${inboundTotals.ANSWERED} | No contestadas: ${inboundTotals['NO ANSWER']} | Ocupado: ${inboundTotals.BUSY} | Fallidas: ${inboundTotals.FAILED}`);
+    .text(`Total: ${inboundTotals.total} | Contestadas: ${inboundTotals.ANSWERED} | No contestadas: ${inboundTotals['NO ANSWER']}`);
   doc.moveDown(0.2);
   doc.fontSize(9).font('Helvetica-Bold').fillColor('#1e3a5f').text('Salientes');
   doc.fontSize(9).font('Helvetica').fillColor('#111111')
-    .text(`Total: ${outboundTotals.total} | Contestadas: ${outboundTotals.ANSWERED} | No contestadas: ${outboundTotals['NO ANSWER']} | Ocupado: ${outboundTotals.BUSY} | Fallidas: ${outboundTotals.FAILED}`);
+    .text(`Total: ${outboundTotals.total} | Contestadas: ${outboundTotals.ANSWERED} | No contestadas: ${outboundTotals['NO ANSWER']}`);
   doc.moveDown(0.6);
 
   // Distribution chart — Contestadas / No Contestadas / Ocupado / Fallidas (#28)
@@ -374,8 +374,8 @@ function renderExecutiveBody(doc, data, _drawBarChart = drawBarChart, _drawMulti
     if (doc.y + chartHeight > doc.page.height - margin) doc.addPage();
     const newY = _drawBarChart(doc, {
       title:  'Llamadas por disposición',
-      labels: ['Contestadas', 'No Contestadas', 'Ocupado', 'Fallidas'],
-      values: [overallTotals.answered, overallTotals.no_answer, overallTotals.busy, overallTotals.failed],
+      labels: ['Contestadas', 'No Contestadas'],
+      values: [overallTotals.answered, overallTotals.no_answer],
       x: margin, y: doc.y, width: contentWidth, height: chartHeight,
       color: '#3b82f6',
     });
@@ -422,7 +422,7 @@ function renderExecutiveBody(doc, data, _drawBarChart = drawBarChart, _drawMulti
   if (topExtensions.length === 0) {
     drawNoDataMessage(doc);
   } else {
-    drawTable(doc, RANKING_HEADERS, topExtensions, RANKING_ROW_KEYS);
+    drawTable(doc, RANKING_HEADERS_EXTENSIONS, topExtensions, RANKING_ROW_KEYS_EXTENSIONS);
     doc.y += topExtensions.length * 16 + 16 + 8;
   }
   doc.moveDown(0.6);
@@ -434,7 +434,7 @@ function renderExecutiveBody(doc, data, _drawBarChart = drawBarChart, _drawMulti
   if (topTrunks.length === 0) {
     drawNoDataMessage(doc);
   } else {
-    drawTable(doc, RANKING_HEADERS, topTrunks, RANKING_ROW_KEYS);
+    drawTable(doc, RANKING_HEADERS_TRUNK, topTrunks, RANKING_ROW_KEYS_TRUNK);
     doc.y += topTrunks.length * 16 + 16 + 8;
   }
 }
@@ -569,11 +569,12 @@ function renderRankingBody(doc, data, _drawBarChart = drawBarChart, _drawMultiBa
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(`Ranking de ${label}`);
   doc.moveDown(0.2);
   const rankingHeaders = type === 'extensions' ? RANKING_HEADERS_EXTENSIONS : RANKING_HEADERS_TRUNK;
+  const rankingRowKeys = type === 'extensions' ? RANKING_ROW_KEYS_EXTENSIONS : RANKING_ROW_KEYS_TRUNK;
   if (rankings.length === 0) {
     drawNoDataMessage(doc);
   } else {
     if (doc.y + 40 > doc.page.height - margin) doc.addPage();
-    drawTable(doc, rankingHeaders, rankings, RANKING_ROW_KEYS);
+    drawTable(doc, rankingHeaders, rankings, rankingRowKeys);
   }
 }
 
@@ -668,18 +669,18 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
 
     const wsTrend = workbook.addWorksheet('Tendencia');
     writeXlsxHeaderBlock(wsTrend, headerOpts);
-    writeXlsxTable(wsTrend, ['Fecha', 'Total', 'Contestadas', 'No contestadas', 'Ocupado', 'Fallidas', 'Dur. media (s)'],
-      trend, ['period_label', 'total', 'answered', 'no_answer', 'busy', 'failed', 'avg_duration']);
+    writeXlsxTable(wsTrend, ['Fecha', 'Total', 'Contestadas', 'No contestadas', 'Dur. media (min)'],
+      trend, ['period_label', 'total', 'answered', 'no_answer', 'avg_duration']);
     await wsTrend.commit();
 
     const wsExt = workbook.addWorksheet('Top Extensiones');
     writeXlsxHeaderBlock(wsExt, headerOpts);
-    writeXlsxTable(wsExt, RANKING_HEADERS_EXTENSIONS, topExtensions, RANKING_ROW_KEYS);
+    writeXlsxTable(wsExt, RANKING_HEADERS_EXTENSIONS, topExtensions, RANKING_ROW_KEYS_EXTENSIONS);
     await wsExt.commit();
 
     const wsTrunks = workbook.addWorksheet('Top Troncales');
     writeXlsxHeaderBlock(wsTrunks, headerOpts);
-    writeXlsxTable(wsTrunks, RANKING_HEADERS, topTrunks, RANKING_ROW_KEYS);
+    writeXlsxTable(wsTrunks, RANKING_HEADERS_TRUNK, topTrunks, RANKING_ROW_KEYS_TRUNK);
     await wsTrunks.commit();
 
     // Datos para gráfica — tendencia diaria (#28)
@@ -729,9 +730,10 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
     const { rankings } = data;
     const xlsxRankingHeaders = type === 'extensions' ? RANKING_HEADERS_EXTENSIONS : RANKING_HEADERS_TRUNK;
 
+    const xlsxRankingRowKeys = type === 'extensions' ? RANKING_ROW_KEYS_EXTENSIONS : RANKING_ROW_KEYS_TRUNK;
     const wsRanking = workbook.addWorksheet('Ranking');
     writeXlsxHeaderBlock(wsRanking, headerOpts);
-    writeXlsxTable(wsRanking, xlsxRankingHeaders, rankings, RANKING_ROW_KEYS);
+    writeXlsxTable(wsRanking, xlsxRankingHeaders, rankings, xlsxRankingRowKeys);
     await wsRanking.commit();
 
     // Datos para gráfica — contestadas vs no contestadas por nombre (#28)
@@ -749,12 +751,10 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
 
 function buildExecutiveSummaryRows(overallTotals, inboundTotals, outboundTotals) {
   return [
-    { metric: 'Total de llamadas',  total: overallTotals.total,        inbound: inboundTotals.total,          outbound: outboundTotals.total },
-    { metric: 'Contestadas',        total: overallTotals.answered,     inbound: inboundTotals.ANSWERED,       outbound: outboundTotals.ANSWERED },
-    { metric: 'No contestadas',     total: overallTotals.no_answer,    inbound: inboundTotals['NO ANSWER'],   outbound: outboundTotals['NO ANSWER'] },
-    { metric: 'Ocupado',            total: overallTotals.busy,         inbound: inboundTotals.BUSY,           outbound: outboundTotals.BUSY },
-    { metric: 'Fallidas',           total: overallTotals.failed,       inbound: inboundTotals.FAILED,         outbound: outboundTotals.FAILED },
-    { metric: 'Duración media (s)', total: overallTotals.avg_duration, inbound: '—',                         outbound: '—' },
+    { metric: 'Total de llamadas',   total: overallTotals.total,        inbound: inboundTotals.total,        outbound: outboundTotals.total },
+    { metric: 'Contestadas',         total: overallTotals.answered,     inbound: inboundTotals.ANSWERED,     outbound: outboundTotals.ANSWERED },
+    { metric: 'No contestadas',      total: overallTotals.no_answer,    inbound: inboundTotals['NO ANSWER'], outbound: outboundTotals['NO ANSWER'] },
+    { metric: 'Duración media (min)',total: overallTotals.avg_duration, inbound: '—',                        outbound: '—' },
   ];
 }
 

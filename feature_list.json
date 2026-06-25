@@ -828,6 +828,14 @@
       "description": "Cambiar el orden de los statcards en InboundView para que coincida con el dashboard: Total entrantes, Contestadas, No contestadas, Perdidas en horario, Perdidas fuera de horario.",
       "sdd": true,
       "status": "done"
+    },
+    {
+      "id": 52,
+      "name": "reports_cleanup",
+      "title": "Reportes: excluir BUSY/FAILED, llamadas internas y duración en minutos",
+      "description": "Los reportes no deben mostrar llamadas fallidas ni ocupadas (BUSY → NO ANSWER, FAILED excluido). Excluir llamadas internas (solo canales configurados). Duración media en minutos en todos los resumenes.",
+      "sdd": true,
+      "status": "in_progress"
     }
   ]
 }

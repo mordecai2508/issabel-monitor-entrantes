@@ -7,23 +7,20 @@ const cdrService   = require('./cdrService');
 
 const REPORT_TYPES = ['executive', 'inbound', 'outbound', 'extensions', 'trunks'];
 
-const DISPOSITIONS = ['ANSWERED', 'NO ANSWER', 'BUSY', 'FAILED'];
-
 /**
  * Aggregate a list of CDR rows by `disposition`.
  *
  * @param {object[]} rows - rows mapped by cdrService (each has a `disposition` field)
- * @returns {{ total: number, ANSWERED: number, 'NO ANSWER': number, BUSY: number, FAILED: number }}
+ * @returns {{ total: number, ANSWERED: number, 'NO ANSWER': number }}
  */
 function summarizeByDisposition(rows) {
-  const summary = { total: rows.length, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
+  const summary = { total: 0, ANSWERED: 0, 'NO ANSWER': 0 };
   for (const row of rows) {
     const d = (row.disposition || '').toUpperCase();
-    // #37: normalización defensiva — BUSY se suma a NO ANSWER
+    if (d === 'FAILED') continue;
+    summary.total += 1;
     const effectiveD = d === 'BUSY' ? 'NO ANSWER' : d;
-    if (DISPOSITIONS.includes(effectiveD)) {
-      summary[effectiveD] += 1;
-    }
+    if (effectiveD === 'ANSWERED' || effectiveD === 'NO ANSWER') summary[effectiveD] += 1;
   }
   return summary;
 }
@@ -42,7 +39,7 @@ async function collectReportData(pool, type, from, to, { inboundChannels = [], o
   const configuredTrunks = [...inboundChannels, ...outboundChannels];
 
   if (type === 'executive') {
-    const opts = { lostDests, configuredTrunks };
+    const opts = { lostDests, configuredTrunks, configuredChannels: configuredTrunks };
     const [overall, trend, inboundRows, outboundRows, topExtensions, topTrunks] = await Promise.all([
       statsService.queryHistorical(pool, 'custom', from, to, opts),
       statsService.queryHistorical(pool, 'day', from, to, opts),
@@ -54,7 +51,7 @@ async function collectReportData(pool, type, from, to, { inboundChannels = [], o
 
     const overallTotals = overall.points.length > 0
       ? overall.points[0]
-      : { total: 0, answered: 0, no_answer: 0, busy: 0, failed: 0, avg_duration: 0 };
+      : { total: 0, answered: 0, no_answer: 0, avg_duration: 0 };
 
     return {
       type,

@@ -90,12 +90,10 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
 
   if (period === 'custom') {
     [rows] = await pool.query(
-      `SELECT COUNT(*) AS total,
+      `SELECT SUM(CASE WHEN UPPER(disposition) != 'FAILED' THEN 1 ELSE 0 END) AS total,
               ${answeredExpr} AS answered,
               ${noAnswerExpr} AS no_answer,
-              SUM(disposition = 'BUSY')   AS busy,
-              SUM(disposition = 'FAILED') AS failed,
-              ROUND(AVG(duration), 2)     AS avg_duration
+              ROUND(AVG(billsec) / 60, 1) AS avg_duration
        FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}`,
       [...extraParams, fromTs, toTs, ...chFilter.params]
     );
@@ -103,12 +101,10 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
     const g = PERIOD_GROUPINGS[period];
     [rows] = await pool.query(
       `SELECT ${g.label} AS period_label,
-              COUNT(*)                    AS total,
+              SUM(CASE WHEN UPPER(disposition) != 'FAILED' THEN 1 ELSE 0 END) AS total,
               ${answeredExpr}             AS answered,
               ${noAnswerExpr}             AS no_answer,
-              SUM(disposition = 'BUSY')   AS busy,
-              SUM(disposition = 'FAILED') AS failed,
-              ROUND(AVG(duration), 2)     AS avg_duration
+              ROUND(AVG(billsec) / 60, 1) AS avg_duration
        FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}
        GROUP BY ${g.groupBy}
        ORDER BY ${g.orderBy} ASC`,
@@ -127,9 +123,7 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
         total:        Number(r.total),
         answered:     Number(r.answered),
         no_answer:    Number(r.no_answer),
-        busy:         Number(r.busy),
-        failed:       Number(r.failed),
-        avg_duration: Number(Number(r.avg_duration).toFixed(2)),
+        avg_duration: Number(Number(r.avg_duration).toFixed(1)),
       }];
     }
   } else {
@@ -138,9 +132,7 @@ async function queryHistorical(pool, period, from, to, opts = {}) {
       total:        Number(r.total),
       answered:     Number(r.answered),
       no_answer:    Number(r.no_answer),
-      busy:         Number(r.busy),
-      failed:       Number(r.failed),
-      avg_duration: Number(Number(r.avg_duration).toFixed(2)),
+      avg_duration: Number(Number(r.avg_duration).toFixed(1)),
     }));
   }
 
