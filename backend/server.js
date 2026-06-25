@@ -340,13 +340,14 @@ async function queryQueues(pool, from, to, inboundChannels, outboundChannels, qu
   const validDsts = new Set([...queues, ...lostDests]);
   const result = {};
   for (const q of queues) {
-    result[q] = { queue: q, label: `Cola ${q}`, total: 0, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
+    result[q] = { queue: q, label: `Cola ${q}`, total: 0, ANSWERED: 0, 'NO ANSWER': 0, FAILED: 0 };
   }
-  result['__lost__'] = { queue: '__lost__', label: 'Perdidas', total: 0, ANSWERED: 0, 'NO ANSWER': 0, BUSY: 0, FAILED: 0 };
+  result['__lost__'] = { queue: '__lost__', label: 'Perdidas', total: 0, ANSWERED: 0, 'NO ANSWER': 0, FAILED: 0 };
 
   for (const r of rows) {
     if (!passesFilter(r.channel, inboundChannels, outboundChannels, 'in')) continue;
     if (!validDsts.has(r.dst)) continue;
+    if (r.disposition.toUpperCase() === 'BUSY') continue;  // #49
     const key = queues.includes(r.dst) ? r.dst : '__lost__';
 
     const targetKey = resolveDisposition(r, lostDests);

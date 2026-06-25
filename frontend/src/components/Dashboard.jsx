@@ -66,7 +66,6 @@ function QueueCard({ queue }) {
           </div>
           <div className="flex justify-between text-xs text-slate-600">
             <span>No contest.: <span className="text-amber-400">{queue['NO ANSWER'] ?? 0}</span></span>
-            <span>Ocupado: <span className="text-red-400">{queue.BUSY ?? 0}</span></span>
           </div>
         </div>
       )}
