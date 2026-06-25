@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export function useSSE(url, { onInit, onUpdate, onPbxStatus, onAlert } = {}) {
+export function useSSE(url, { onInit, onUpdate, onPbxStatus, onAlert, onConfigUpdated } = {}) {
   const [connected, setConnected]   = useState(false);
   const [lastEvent, setLastEvent]   = useState(null);
   const esRef = useRef(null);
@@ -33,6 +33,11 @@ export function useSSE(url, { onInit, onUpdate, onPbxStatus, onAlert } = {}) {
       es.addEventListener('alert', (e) => {
         const data = JSON.parse(e.data);
         onAlert?.(data);
+      });
+
+      es.addEventListener('config_updated', (e) => {
+        const data = JSON.parse(e.data);
+        onConfigUpdated?.(data);
       });
 
       es.onerror = () => {

@@ -69,6 +69,10 @@ export default function Layout() {
       if (data.resolved) return;
       setToast({ type: 'error', message: `Nueva alerta: ${data.description || data.type}` });
     },
+    onConfigUpdated: (data) => {
+      if (data.appName !== undefined)        setAppName(data.appName);
+      if (data.subcompanyName !== undefined) setSubcompanyName(data.subcompanyName);
+    },
   });
 
   async function saveAppName() {

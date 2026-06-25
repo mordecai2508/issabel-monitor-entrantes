@@ -448,13 +448,6 @@ async function startServer() {
     }
   }
 
-  app.use('/api', require('./routes/users')(pool, config, db, requireAuth, requireAdmin));
-  app.use('/api', inboundRouter(pool, config, requireAuth, extractChannel));
-  app.use('/api', outboundRouter(pool, config, requireAuth, extractChannel));
-  app.use('/api', statsRouter(pool, config, requireAuth, db));
-  app.use('/api', reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk));
-  app.use('/api', configRouter(pool, config, db, requireAuth, requireAdmin, getAppName));
-
   // ── SSE — broadcast helper (declarado temprano para pbxHealthService) ──
   const sseClients = new Set();
 
@@ -464,6 +457,13 @@ async function startServer() {
       try { c.write(msg); } catch { sseClients.delete(c); }
     }
   }
+
+  app.use('/api', require('./routes/users')(pool, config, db, requireAuth, requireAdmin));
+  app.use('/api', inboundRouter(pool, config, requireAuth, extractChannel));
+  app.use('/api', outboundRouter(pool, config, requireAuth, extractChannel));
+  app.use('/api', statsRouter(pool, config, requireAuth, db));
+  app.use('/api', reportsRouter(pool, config, db, requireAuth, extractChannel, dbOk));
+  app.use('/api', configRouter(pool, config, db, requireAuth, requireAdmin, getAppName, broadcast));
 
   // ── PBX health monitoring (feature pbx_health) ─────────────────
   const createPbxHealthService = require('./services/pbxHealthService');

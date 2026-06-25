@@ -63,7 +63,7 @@ function contentTypeForLogo(filePath) {
  * @param {Function} getAppName
  * @returns {import('express').Router}
  */
-module.exports = function configRouter(pool, config, db, requireAuth, requireAdmin, getAppName) {
+module.exports = function configRouter(pool, config, db, requireAuth, requireAdmin, getAppName, broadcast) {
   const router = express.Router();
 
   // Defensive: ensure the uploads directory exists on disk (T6).
@@ -152,7 +152,14 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
       if (businessHours !== undefined) {
         configService.setBusinessHours(db, businessHours);
       }
-      res.json({ ok: true, data: buildConfigResponse() });
+      const responseData = buildConfigResponse();
+      res.json({ ok: true, data: responseData });
+      if (typeof broadcast === 'function') {
+        broadcast('config_updated', {
+          appName: responseData.companyName,
+          subcompanyName: responseData.subcompanyName,
+        });
+      }
     } catch (err) {
       if (err.status === 400) {
         return res.status(400).json({ ok: false, error: err.message });
