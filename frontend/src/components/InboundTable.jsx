@@ -16,7 +16,7 @@ const COLUMNS = [
   { key: 'channel',     label: 'Troncal'       },
   { key: 'dst',         label: 'Destino'       },
   { key: 'dstchannel',  label: 'Canal Destino' },
-  { key: 'billsec',     label: 'Duración'      },
+  { key: 'billsec',     label: 'Duración (mm:ss)', align: 'center' },
   { key: 'disposition', label: 'Estado'        },
 ];
 
@@ -287,7 +287,7 @@ export default function InboundTable() {
                       <th
                         key={col.key}
                         onClick={() => handleSort(col.key)}
-                        className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-200 whitespace-nowrap"
+                        className={`px-4 py-3 ${col.align === 'center' ? 'text-center' : 'text-left'} text-xs font-medium text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-200 whitespace-nowrap`}
                       >
                         {col.label}
                         <SortIcon col={col.key} sortCol={sortCol} sortDir={sortDir} />
@@ -308,7 +308,7 @@ export default function InboundTable() {
                       <td className="px-4 py-2.5 whitespace-nowrap text-slate-400">{aliasMap[row.channel] || row.channel}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">{row.dst}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">{extractAgentName(row.dstchannel)}</td>
-                      <td className="px-4 py-2.5 text-right">{formatBillsec(row.billsec)}</td>
+                      <td className="px-4 py-2.5 text-center">{formatBillsec(row.billsec)}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <span className={`font-medium ${dispositionBadge(row.disposition)}`}>
                           {dispositionLabel(row.disposition)}
