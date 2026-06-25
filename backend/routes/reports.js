@@ -1,8 +1,9 @@
 'use strict';
 
-const express       = require('express');
-const reportService = require('../services/reportService');
-const exportService = require('../services/exportService');
+const express        = require('express');
+const reportService  = require('../services/reportService');
+const exportService  = require('../services/exportService');
+const configService  = require('../services/configService');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const REPORT_TIMEOUT_MS = 10000;
@@ -34,27 +35,45 @@ module.exports = function reportsRouter(pool, config, db, requireAuth, extractCh
   const inboundChannels  = (config.channels && config.channels.inbound)  || [];
   const outboundChannels = (config.channels && config.channels.outbound) || [];
   const lostDests        = config.lostDestinations || [];
-  const channelAliases   = config.channelAliases   || {};
-
-  function applyAlias(name) {
-    return channelAliases[name] || name;
-  }
 
   function applyAliasesToReportData(type, data) {
+    const channelAliases = configService.getChannelAliases(db);
+
+    function applyAlias(name) {
+      return channelAliases[name] || name;
+    }
+
     if (type === 'inbound' && data.rows) {
       return { ...data, rows: data.rows.map(r => ({ ...r, channel: applyAlias(r.channel) })) };
     }
     if (type === 'outbound' && data.rows) {
       return { ...data, rows: data.rows.map(r => ({ ...r, dstchannel: applyAlias(r.dstchannel) })) };
     }
-    if (type === 'executive') {
-      return {
-        ...data,
-        topTrunks: (data.topTrunks || []).map(r => ({ ...r, name: applyAlias(r.name) })),
-      };
-    }
     if (type === 'trunks' && data.rankings) {
       return { ...data, rankings: data.rankings.map(r => ({ ...r, name: applyAlias(r.name) })) };
+    }
+    if (type === 'extensions' && data.rankings) {
+      const names = data.rankings.map(r => r.name);
+      const extOverrides = configService.getExtensionOverrides(db, names);
+      return {
+        ...data,
+        rankings: data.rankings.map(r => ({
+          ...r,
+          name: extOverrides.get(r.name)?.displayName || r.name,
+        })),
+      };
+    }
+    if (type === 'executive') {
+      const extNames = (data.topExtensions || []).map(r => r.name);
+      const extOverrides = configService.getExtensionOverrides(db, extNames);
+      return {
+        ...data,
+        topTrunks:     (data.topTrunks     || []).map(r => ({ ...r, name: applyAlias(r.name) })),
+        topExtensions: (data.topExtensions || []).map(r => ({
+          ...r,
+          name: extOverrides.get(r.name)?.displayName || r.name,
+        })),
+      };
     }
     return data;
   }
