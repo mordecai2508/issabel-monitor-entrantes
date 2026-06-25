@@ -165,12 +165,13 @@ function BusinessHoursSection({ value, onChange }) {
 // ── Tab: General ──────────────────────────────────────────────────────────────
 
 function GeneralTab({ config, onSaved, onError }) {
-  const [companyName, setCompanyName]     = useState(config.companyName || '');
-  const [timezone, setTimezone]           = useState(config.timezone || '');
-  const [language, setLanguage]           = useState(config.language || 'es');
-  const [businessHours, setBusinessHours] = useState(config.businessHours ?? null);
-  const [saving, setSaving]               = useState(false);
-  const [localError, setLocalError]       = useState('');
+  const [companyName, setCompanyName]         = useState(config.companyName || '');
+  const [subcompanyName, setSubcompanyName]   = useState(config.subcompanyName || '');
+  const [timezone, setTimezone]               = useState(config.timezone || '');
+  const [language, setLanguage]               = useState(config.language || 'es');
+  const [businessHours, setBusinessHours]     = useState(config.businessHours ?? null);
+  const [saving, setSaving]                   = useState(false);
+  const [localError, setLocalError]           = useState('');
 
   function validate() {
     if (!companyName.trim()) return 'El nombre de la empresa no puede estar vacío';
@@ -191,6 +192,7 @@ function GeneralTab({ config, onSaved, onError }) {
     try {
       const res = await api.updateAdminConfig({
         companyName: companyName.trim(),
+        subcompanyName,
         timezone,
         language,
         businessHours,
@@ -211,6 +213,14 @@ function GeneralTab({ config, onSaved, onError }) {
           value={companyName}
           onChange={e => setCompanyName(e.target.value)}
           placeholder="Mi Empresa"
+        />
+      </Field>
+      <Field label="Nombre de subempresa" hint="Opcional. Se muestra debajo del nombre principal en el sidebar.">
+        <Input
+          value={subcompanyName}
+          onChange={e => setSubcompanyName(e.target.value)}
+          placeholder="Ej. Departamento de Ventas"
+          maxLength={100}
         />
       </Field>
       <Field label="Zona horaria" hint="Formato ±HH:MM, ej. -05:00">

@@ -113,10 +113,11 @@ async function collectReportData(pool, type, from, to, { inboundChannels = [], o
  *
  * @param {import('better-sqlite3').Database} db
  * @param {string} fallbackAppName
- * @returns {{ companyName: string, logoPath: string|null }}
+ * @returns {{ companyName: string, subcompanyName: string, logoPath: string|null }}
  */
 function getBranding(db, fallbackAppName) {
   let companyName = null;
+  let subcompanyName = '';
   let logoPath = null;
 
   try {
@@ -126,12 +127,13 @@ function getBranding(db, fallbackAppName) {
 
     if (tableExists) {
       const rows = db.prepare(
-        `SELECT key, value FROM system_config WHERE key IN ('companyName', 'logoPath')`
+        `SELECT key, value FROM system_config WHERE key IN ('companyName', 'logoPath', 'subcompanyName')`
       ).all();
 
       for (const row of rows) {
         if (row.key === 'companyName' && row.value) companyName = row.value;
         if (row.key === 'logoPath' && row.value) logoPath = row.value;
+        if (row.key === 'subcompanyName') subcompanyName = row.value || '';
       }
     }
   } catch (err) {
@@ -144,6 +146,7 @@ function getBranding(db, fallbackAppName) {
 
   return {
     companyName: companyName || fallbackAppName,
+    subcompanyName,
     logoPath,
   };
 }

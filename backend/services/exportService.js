@@ -313,6 +313,9 @@ function drawReportHeader(doc, { type, from, to, branding }) {
 
   const startY = doc.y;
   doc.fontSize(12).font('Helvetica-Bold').fillColor('#1e3a5f').text(branding.companyName, textX, startY, { align: 'left' });
+  if (branding.subcompanyName) {
+    doc.fontSize(9).font('Helvetica').fillColor('#1e3a5f').text(branding.subcompanyName, textX, doc.y + 1, { align: 'left' });
+  }
   doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f').text(REPORT_TITLES[type] || 'Reporte', textX, doc.y + 2, { align: 'left' });
   doc.fontSize(10).font('Helvetica').fillColor('#333333').text(`Rango de fechas: ${from} — ${to}`, textX, doc.y + 4, { align: 'left' });
   doc.fontSize(8).font('Helvetica').fillColor('#888888').text(`Generado: ${new Date().toISOString()}`, textX, doc.y + 2, { align: 'left' });
@@ -600,9 +603,12 @@ function buildReportPdf(res, { type, from, to, branding, data, filenameBase }) {
 /**
  * Write header block rows at the top of an Excel worksheet.
  */
-function writeXlsxHeaderBlock(worksheet, { title, companyName, from, to }) {
+function writeXlsxHeaderBlock(worksheet, { title, companyName, subcompanyName, from, to }) {
   worksheet.addRow([title]).commit();
   worksheet.addRow([companyName]).commit();
+  if (subcompanyName) {
+    worksheet.addRow([subcompanyName]).commit();
+  }
   worksheet.addRow([`Rango de fechas: ${from} — ${to}`]).commit();
   worksheet.addRow([`Generado: ${new Date().toISOString()}`]).commit();
   worksheet.addRow([]).commit();
@@ -645,7 +651,7 @@ async function buildReportXlsx(res, { type, from, to, branding, data, filenameBa
 
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res });
   const title = REPORT_TITLES[type] || 'Reporte';
-  const headerOpts = { title, companyName: branding.companyName, from, to };
+  const headerOpts = { title, companyName: branding.companyName, subcompanyName: branding.subcompanyName || '', from, to };
 
   if (type === 'executive') {
     const { overallTotals, trend, inboundTotals, outboundTotals, topExtensions, topTrunks } = data;

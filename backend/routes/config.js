@@ -104,6 +104,7 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
       themeColors: general.themeColors,
       logoUrl,
       businessHours: configService.getBusinessHours(db),
+      subcompanyName: general.subcompanyName,
     };
   }
 
@@ -119,9 +120,9 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
 
   // ── PATCH /admin/config ──────────────────────────────────────────
   router.patch('/admin/config', requireAdmin, (req, res) => {
-    const { companyName, timezone, language, themeColors, businessHours } = req.body || {};
+    const { companyName, timezone, language, themeColors, businessHours, subcompanyName } = req.body || {};
 
-    if (companyName === undefined && timezone === undefined && language === undefined && themeColors === undefined && businessHours === undefined) {
+    if (companyName === undefined && timezone === undefined && language === undefined && themeColors === undefined && businessHours === undefined && subcompanyName === undefined) {
       return res.status(400).json({ ok: false, error: 'Debe proporcionar al menos un campo a actualizar' });
     }
 
@@ -145,8 +146,8 @@ module.exports = function configRouter(pool, config, db, requireAuth, requireAdm
     }
 
     try {
-      if (companyName !== undefined || timezone !== undefined || language !== undefined || themeColors !== undefined) {
-        configService.updateGeneralConfig(db, { companyName, timezone, language, themeColors });
+      if (companyName !== undefined || timezone !== undefined || language !== undefined || themeColors !== undefined || subcompanyName !== undefined) {
+        configService.updateGeneralConfig(db, { companyName, timezone, language, themeColors, subcompanyName });
       }
       if (businessHours !== undefined) {
         configService.setBusinessHours(db, businessHours);

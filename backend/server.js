@@ -648,7 +648,8 @@ async function startServer() {
   // NOTE: GET /api/admin/users is now handled by the users router below.
 
   app.get('/api/config/public', (req, res) => {
-    res.json({ appName: getAppName() });
+    const subcompanyName = configService.getConfigValue(db, 'subcompanyName', '') || '';
+    res.json({ appName: getAppName(), subcompanyName });
   });
 
   app.put('/api/admin/app', requireAdmin, (req, res) => {

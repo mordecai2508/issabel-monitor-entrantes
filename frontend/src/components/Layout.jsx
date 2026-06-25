@@ -35,10 +35,11 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [appName, setAppName]     = useState('Call Monitor');
-  const [editing, setEditing]     = useState(false);
-  const [editValue, setEditValue] = useState('');
-  const [saving, setSaving]       = useState(false);
+  const [appName, setAppName]             = useState('Call Monitor');
+  const [subcompanyName, setSubcompanyName] = useState('');
+  const [editing, setEditing]             = useState(false);
+  const [editValue, setEditValue]         = useState('');
+  const [saving, setSaving]               = useState(false);
 
   // PBX connection status (feature pbx_health, R14/R16/R17)
   const [pbxStatus, setPbxStatus] = useState(null);
@@ -46,7 +47,10 @@ export default function Layout() {
   const prevConnectedRef = useRef(null);
 
   useEffect(() => {
-    api.publicConfig().then(d => setAppName(d.appName)).catch(() => {});
+    api.publicConfig().then(d => {
+      setAppName(d.appName);
+      setSubcompanyName(d.subcompanyName || '');
+    }).catch(() => {});
   }, []);
 
   useSSE('/api/events', {
@@ -127,7 +131,9 @@ export default function Layout() {
                 )}
               </div>
             )}
-            <div className="text-xs text-slate-500 leading-none mt-0.5">Physical</div>
+            {subcompanyName && (
+              <div className="text-xs text-slate-500 leading-none mt-0.5">{subcompanyName}</div>
+            )}
           </div>
         </div>
 

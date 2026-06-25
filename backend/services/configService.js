@@ -59,6 +59,7 @@ function getGeneralConfig(db, { fallbackAppName, fallbackTimezone }) {
       accent: getConfigValue(db, 'themeColorAccent', DEFAULT_THEME_ACCENT),
     },
     logoPath: getLogoPath(db),
+    subcompanyName: getConfigValue(db, 'subcompanyName', '') || '',
   };
 }
 
@@ -74,7 +75,7 @@ function getGeneralConfig(db, { fallbackAppName, fallbackTimezone }) {
  * @throws {{ status: number, message: string }}
  */
 function updateGeneralConfig(db, fields) {
-  const { companyName, timezone, language, themeColors } = fields || {};
+  const { companyName, timezone, language, themeColors, subcompanyName } = fields || {};
 
   // ── Validate everything first (no partial writes on error) ──────
   if (companyName !== undefined) {
@@ -108,6 +109,12 @@ function updateGeneralConfig(db, fields) {
     }
   }
 
+  if (subcompanyName !== undefined) {
+    if (typeof subcompanyName !== 'string' || subcompanyName.length > 100) {
+      throw { status: 400, message: 'subcompanyName debe ser una cadena de hasta 100 caracteres' };
+    }
+  }
+
   // ── Persist only the provided fields ─────────────────────────────
   if (companyName !== undefined) {
     setConfigValue(db, 'companyName', companyName.trim());
@@ -125,6 +132,9 @@ function updateGeneralConfig(db, fields) {
     if (themeColors.accent !== undefined) {
       setConfigValue(db, 'themeColorAccent', themeColors.accent);
     }
+  }
+  if (subcompanyName !== undefined) {
+    setConfigValue(db, 'subcompanyName', subcompanyName.trim());
   }
 }
 
