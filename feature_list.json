@@ -505,7 +505,6 @@
       "id": 27,
       "name": "reclassification_consistency",
       "title": "Aplicar la lógica de reclasificación del dashboard a todos los módulos (Entrantes, Histórico, Analytics, Reportes)",
-
       "description": "Los módulos InboundTable (/inbound/search), OutboundTable (/outbound/search), HistoricalView, HistoricalAnalytics y ReportsModule usan la disposición raw del CDR de MySQL (ANSWERED/NO ANSWER/BUSY/FAILED) sin aplicar las reclasificaciones del dashboard (#17: lostDestinations, #21: ANSWERED sin agente real). Esto genera inconsistencias: una llamada que el dashboard clasifica como 'Perdida' puede aparecer como 'ANSWERED' en la tabla de búsqueda o en el histórico. Esta feature aplica las mismas reglas de resolveDisposition a todos los módulos: (1) Para las tablas de búsqueda de CDR (InboundTable/OutboundTable): cdrService devuelve dst y dstchannel junto a la fila; el backend aplica resolveDisposition antes de responder, reemplazando la disposición raw. (2) Para las queries agregadas (statsService.queryHistorical, queryCompare, queryRankings): se añaden expresiones CASE en SQL que replican la lógica de resolveDisposition, parametrizando config.lostDestinations y la regex AGENT_DSTCHANNEL_RE. (3) reportService.summarizeByDisposition trabaja sobre rows ya reclasificados, por lo que no necesita cambios tras corregir cdrService.",
       "refs": [
         "RF-01",
@@ -601,7 +600,10 @@
       "name": "hide_failed_busy_statcards",
       "title": "Ocultar tarjetas 'Fallidas' y 'Ocupado' en Dashboard y Módulo Histórico",
       "description": "Las StatCards 'Fallidas' (FAILED) y 'Ocupado' (BUSY) actualmente se muestran en el Dashboard principal y en HistoricalView. El negocio no opera con esas categorías como KPIs relevantes — todos los flujos de llamadas de Issabel terminan en ANSWERED o NO ANSWER (reclasificado). Estas tarjetas se deben eliminar del render en ambas vistas sin eliminar los datos del payload del backend (el campo dispositions.FAILED / dispositions.BUSY sigue existiendo para no romper compatibilidad).",
-      "refs": ["RF-01", "RF-04"],
+      "refs": [
+        "RF-01",
+        "RF-04"
+      ],
       "sdd": false,
       "status": "done",
       "note": "Dashboard.jsx: eliminadas StatCards 'Ocupado' y 'Fallidas' y sus variables (busy, failed, busyPct, failedPct); la tarjeta de duración/canales que compartía grid con ellas pasa a ser un card independiente full-width. HistoricalView.jsx: eliminadas las mismas StatCards; grid ajustado de 6 a 4 columnas (lg:grid-cols-4). Imports PhoneOff y AlertTriangle eliminados en ambos archivos. Payload backend sin cambios."
@@ -611,7 +613,11 @@
       "name": "trunk_aliases_in_reports_and_search",
       "title": "Mostrar alias de troncales en reportes y búsqueda de entrantes",
       "description": "En los reportes PDF/Excel y en la tabla de búsqueda de llamadas entrantes (InboundTable, /inbound/search) se muestra el nombre técnico de la troncal del CDR (p.ej. SIP/ENT_LIWA, SIP/NET2_ENT_6076854970) en lugar del alias legible configurado por el administrador en el módulo de Canales (channelAliases, p.ej. 'Entrante Principal'). Esta feature aplica el lookup de alias en ambos contextos: (1) backend: reportService resuelve el alias antes de incluir el nombre de troncal en el contenido PDF/Excel; (2) frontend: InboundTable aplica channelAliases (disponibles vía SSE o /api/admin/config) al renderizar la columna 'Troncal' de la tabla de resultados.",
-      "refs": ["RF-02", "RF-05", "RF-07"],
+      "refs": [
+        "RF-02",
+        "RF-05",
+        "RF-07"
+      ],
       "sdd": false,
       "status": "done",
       "note": "InboundTable.jsx: aliasMap construido desde trunks (ya cargados en mount via api.adminChannels); celda channel usa aliasMap[row.channel] || row.channel. inbound.js: en /calls/inbound/export se aplica config.channelAliases a row.channel (displayRows) y a filters.trunk (displayFilters para encabezado PDF); se pasan displayRows/displayFilters a toXlsx/toPdf. reports.js: applyAliasesToReportData() transforma data post-collectReportData: inbound→rows[].channel, outbound→rows[].dstchannel, executive→topTrunks[].name, trunks→rankings[].name. channelAliases leído de config.channelAliases al arrancar el router.",
@@ -629,7 +635,9 @@
       "name": "inbound_perdidas_business_hours",
       "title": "Módulo Entrantes: eliminar tarjeta 'Perdidas' duplicada y agregar desglose por horario de atención",
       "description": "En InboundView aparecen dos representaciones de 'Perdidas': la StatCard añadida en #31 (con valor ivr_hangup + pct) y una tarjeta o sección adicional que muestra el mismo dato de otra forma. Esta feature elimina la representación duplicada, deja únicamente la StatCard con porcentaje, y añade el desglose por horario de atención (En horario / Fuera de horario) replicando exactamente lo que ya hace el Dashboard con breakdown.ivr_hangup_business e ivr_hangup_offhours (#25). Los datos ya están disponibles en el payload SSE cuando businessHours está configurado; no se requieren cambios en backend.",
-      "refs": ["RF-02"],
+      "refs": [
+        "RF-02"
+      ],
       "sdd": false,
       "status": "done",
       "note": "InboundView.jsx: (1) QueueCard __lost__ eliminada del render — queues.filter(q => q.queue !== '__lost__') igual que Dashboard, era la causa del duplicado; (2) perdidasSubItems calculado desde data.businessHours y breakdown.ivr_hangup_business/ivr_hangup_offhours; (3) prop subItems={perdidasSubItems} añadida a StatCard 'Perdidas'. Sin cambios de backend.",
@@ -653,6 +661,173 @@
       "sdd": false,
       "status": "done",
       "note": "statsService.js: queryRankings('trunk') acepta configuredTrunks[] y añade WHERE channel LIKE para filtrar por canales configurados. stats.js: pasa configuredTrunks (inbound+outbound) al endpoint. reportService.js: pasa configuredTrunks a queryRankings para reportes de trunks y executive. HistoricalAnalytics.jsx: toggle 'Extensiones'→'Agentes', título dinámico. Lógica No Contestadas ya correcta (lostDests+reclassifyCaseExprs en queryHistorical/queryCompare/queryRankings). Filtro numérico ^[0-9]{2,6}$ aplicado en tarea #4."
+    },
+    {
+      "id": 37,
+      "name": "busy_as_unanswered",
+      "title": "Reclasificar BUSY como 'No Contestada' en todos los módulos",
+      "description": "Las llamadas con disposition='BUSY' deben tratarse como no contestadas (igual que 'NO ANSWER') en todos los módulos: dashboard KPIs, HistoricalView, HistoricalAnalytics, tablas de búsqueda entrantes/salientes y reportes. La categoría BUSY deja de ser una disposición independiente y se absorbe en la lógica de resolveDisposition existente. Esto afecta queryStats, queryChannels, queryHourly, queryHistorical, queryCompare, queryRankings, cdrService y reportService.",
+      "refs": [
+        "RF-01",
+        "RF-02",
+        "RF-03",
+        "RF-04",
+        "RF-07"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 38,
+      "name": "perdidas_split_statcards",
+      "title": "Separar 'Perdidas' en dos StatCards independientes: 'Perdidas en horario' y 'Perdidas fuera de horario'",
+      "description": "La feature #25 añadió el desglose de ivr_hangup como sub-items dentro de la StatCard 'Perdidas'. Esta feature convierte esos sub-items en dos StatCards independientes ('Perdidas en horario' e 'Perdidas fuera de horario'), tanto en el Dashboard como en HistoricalView. Cuando businessHours no está configurado, se muestra una única StatCard 'Perdidas' con el total (comportamiento de fallback). El backend ya calcula ivr_hangup_business e ivr_hangup_offhours; no se requieren cambios en backend.",
+      "refs": [
+        "RF-01",
+        "RF-04"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 39,
+      "name": "channel_table_hide_busy_failed",
+      "title": "Ocultar llamadas Ocupadas y Fallidas de la tabla 'Estadísticas por canal'",
+      "description": "El componente ChannelTable (Dashboard y HistoricalView) muestra actualmente columnas de llamadas Ocupadas (BUSY) y Fallidas (FAILED). El negocio solo opera con Contestadas, Perdidas y No Contestadas como KPIs relevantes. Esta feature elimina del render las columnas BUSY y FAILED de ChannelTable sin cambiar el payload del backend. También aplica a InboundView donde ChannelTable se reutiliza.",
+      "refs": [
+        "RF-01",
+        "RF-02",
+        "RF-04"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 40,
+      "name": "search_datetime_format_fix",
+      "title": "Corregir formato de fecha/hora en búsqueda de entrantes y salientes",
+      "description": "Los módulos 'Búsqueda entrantes' (InboundTable) y 'Búsqueda salientes' (OutboundTable) muestran la hora incorrecta. El servidor almacena el calldate en UTC (el CDR muestra 2026-06-24 17:30:34 local, pero el servidor lo devuelve como 2026-06-24T22:30:34.000Z en UTC). El frontend debe convertir la hora UTC a la hora local del servidor usando el offset de timezone ya configurado en config.json (db.timezone, p.ej. '-05:00') y mostrarla con el formato 'YYYY-MM-DD HH:MM:SS'.",
+      "refs": [
+        "RF-02",
+        "RF-03"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 41,
+      "name": "search_table_columns_redesign",
+      "title": "Rediseñar columnas de la tabla en búsqueda de entrantes y salientes",
+      "description": "Rediseñar las columnas de InboundTable y OutboundTable para mostrar: 'Fecha/hora' (con fix de #40), 'Origen', 'Troncal' (con alias), 'Destino', 'Canal Destino' (nombre del agente que contestó, extraído de dstchannel), 'Duración' (en minutos con decimales o formato mm:ss), 'Estado'. Las columnas actuales que no encajan en este esquema se eliminan. Los cambios aplican también a la exportación Excel y PDF.",
+      "refs": [
+        "RF-02",
+        "RF-03",
+        "RF-07"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 42,
+      "name": "analytics_agents_ranking_fix",
+      "title": "Analytics: ranking de agentes muestra solo llamadas contestadas; duración media en minutos",
+      "description": "En el módulo Analytics (HistoricalAnalytics), el ranking de agentes actualmente muestra el total de llamadas (incluyendo no contestadas) y la duración media en segundos. Esta feature: (1) filtra el ranking para mostrar solo las llamadas efectivamente contestadas (answered) por cada agente; (2) cambia la duración media de segundos a minutos (con un decimal o formato mm:ss). Los cambios aplican al endpoint /api/stats/rankings?type=extension y a HistoricalAnalytics.jsx. También aplica a reportes del tipo 'extensiones'.",
+      "refs": [
+        "RF-04",
+        "RF-07"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 43,
+      "name": "analytics_ranking_display_fix",
+      "title": "Analytics: ocultar col No Cont. en agentes y duración en minutos en troncales",
+      "description": "Dos ajustes en la tabla de rankings del módulo Analytics: (1) En el ranking de Agentes (type=extension), eliminar del render la columna \"Llamadas No Cont.\" ya que el ranking ahora muestra solo llamadas contestadas (#42) y esa columna siempre sería 0 o confusa; (2) En el ranking de Troncales (type=trunk), cambiar la duración media de segundos a minutos (ROUND(AVG(billsec)/60, 1)) y actualizar el encabezado a \"Dur. media (min)\", igual que se hizo para agentes en #42.",
+      "refs": [
+        "RF-04"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 44,
+      "name": "search_duration_format",
+      "title": "Búsqueda: label min en columna Duración y centrado de datos",
+      "description": "En las tablas InboundTable y OutboundTable, la columna Duración muestra el valor en formato mm:ss (feature #41) pero sin indicación de unidad. Esta feature: (1) añade una indicación de minutos al encabezado o a cada celda (ej: sufijo \" min\" o encabezado \"Duración (mm:ss)\"); (2) centra los datos de la columna Duración que actualmente no están centrados. Sin cambios en backend.",
+      "refs": [
+        "RF-02",
+        "RF-03"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 45,
+      "name": "compare_duration_minutes",
+      "title": "Comparativa de periodos: duración en minutos",
+      "description": "El módulo de comparativa de periodos (HistoricalAnalytics, CompareSection) muestra la duración media en segundos. Esta feature cambia la presentación a minutos (con 1 decimal) tanto en el frontend como asegurando que el endpoint /api/stats/compare devuelva avg_duration en minutos. Aplica también a los reportes que incluyan datos de comparativa.",
+      "refs": [
+        "RF-04"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 46,
+      "name": "subcompany_name_config",
+      "title": "Configuración: campo nombre de subempresa editable",
+      "description": "El sistema ya tiene un campo de nombre de empresa (company_name) en la tabla system_config (SQLite). Esta feature añade un campo adicional \"subcompany_name\" (nombre de subempresa) editable desde el panel de administrador (SystemConfig.jsx), con valor por defecto vacío. El nombre configurado debe aparecer visible en la UI (ej: en el header/layout junto al nombre principal, o en los reportes PDF/Excel como subtítulo). El administrador puede modificar este campo desde Configuración → General.",
+      "refs": [
+        "RF-05",
+        "RF-07"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 47,
+      "name": "charts_perdidas_horario",
+      "title": "Gráficas: desglose perdidas en/fuera horario; excluir ocupadas y fallidas",
+      "description": "Las gráficas DispositionChart (distribución de llamadas, pie/donut) y HourlyChart (llamadas por hora, barras) actualmente muestran categorías BUSY y FAILED como segmentos/barras. Esta feature: (1) elimina los segmentos BUSY y FAILED de ambas gráficas; (2) en DispositionChart, divide el segmento \"Perdidas\" (ivr_hangup) en dos: \"Perdidas en horario\" (ivr_hangup_business) y \"Perdidas fuera de horario\" (ivr_hangup_offhours) cuando businessHours está configurado; (3) en HourlyChart, aplica el mismo desglose de barras de perdidas cuando businessHours está configurado. Los datos de desglose por hora ya están en el payload si el backend los incluye; de lo contrario, se requerirá extender queryHourly para devolver el desglose por hora. Los cambios aplican en Dashboard y potencialmente en HistoricalView.",
+      "refs": [
+        "RF-01",
+        "RF-04"
+      ],
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 48,
+      "name": "subcompany_name_display_fix",
+      "title": "Mostrar nombre de subempresa en el sidebar",
+      "description": "El nombre de subempresa configurado no se está mostrando en el sidebar. Revisar y corregir la llamada a /api/config/public y el render condicional en Layout.jsx.",
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 49,
+      "name": "queues_hide_busy",
+      "title": "Ocultar llamadas ocupadas de los statcards de colas",
+      "description": "Los statcards de colas muestran llamadas con disposición BUSY. Deben excluirse, mostrando solo contestadas y perdidas reales.",
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 50,
+      "name": "rankings_split_cards",
+      "title": "Dividir ranking de troncales y ranking de agentes en dos secciones independientes",
+      "description": "Actualmente el ranking de troncales y el de agentes comparten un mismo bloque con un selector. Deben separarse en dos secciones independientes, cada una con su propio selector de período y controles.",
+      "sdd": true,
+      "status": "done"
+    },
+    {
+      "id": 51,
+      "name": "inbound_statcards_reorder",
+      "title": "Reordenar statcards de entrantes: Total > Contestadas > No Contestadas > Perdidas",
+      "description": "Cambiar el orden de los statcards en InboundView para que coincida con el dashboard: Total entrantes, Contestadas, No contestadas, Perdidas en horario, Perdidas fuera de horario.",
+      "sdd": true,
+      "status": "in_progress"
     }
   ]
 }

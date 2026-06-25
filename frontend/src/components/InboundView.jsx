@@ -119,10 +119,12 @@ export default function InboundView() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 gap-4 ${businessHours ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
             <StatCard label="Total entrantes" value={total}    icon={Phone}       color="blue" />
             <StatCard label="Contestadas"     value={answered} icon={PhoneCall}   color="green"
               sub="del total" pct={answeredPct} />
+            <StatCard label="No Contestadas"  value={noAnswer} icon={PhoneMissed} color="amber"
+              sub="del total" pct={noAnswerPct} />
             {businessHours ? (
               <>
                 <StatCard
@@ -155,8 +157,6 @@ export default function InboundView() {
                 hint="Clientes que llamaron, escucharon el menú de opciones y colgaron antes de hablar con alguien."
               />
             )}
-            <StatCard label="No Contestadas"  value={noAnswer} icon={PhoneMissed} color="amber"
-              sub="del total" pct={noAnswerPct} />
           </div>
 
           <div className="card flex flex-wrap items-center gap-8">
