@@ -1,6 +1,8 @@
 node_modules/
 frontend/dist/
 backend/db/monitor.sqlite
+backend/db/monitor.sqlite-shm
+backend/db/monitor.sqlite-wal
 backend/uploads/*
 !backend/uploads/.gitkeep
 backend/config.json
