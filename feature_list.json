@@ -827,7 +827,7 @@
       "title": "Reordenar statcards de entrantes: Total > Contestadas > No Contestadas > Perdidas",
       "description": "Cambiar el orden de los statcards en InboundView para que coincida con el dashboard: Total entrantes, Contestadas, No contestadas, Perdidas en horario, Perdidas fuera de horario.",
       "sdd": true,
-      "status": "in_progress"
+      "status": "done"
     }
   ]
 }
