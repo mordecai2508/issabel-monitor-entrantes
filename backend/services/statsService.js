@@ -158,7 +158,7 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
             ${noAnswerExpr}             AS no_answer,
             SUM(disposition = 'BUSY')   AS busy,
             SUM(disposition = 'FAILED') AS failed,
-            ROUND(AVG(duration), 2)     AS avg_duration
+            ROUND(AVG(billsec) / 60, 1) AS avg_duration
      FROM cdr WHERE calldate >= ? AND calldate <= ?${chFilter.sql}`;
 
   const [[rows1], [rows2]] = await Promise.all([
@@ -175,7 +175,7 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
     no_answer:    Number(r1.no_answer),
     busy:         Number(r1.busy),
     failed:       Number(r1.failed),
-    avg_duration: Number(Number(r1.avg_duration).toFixed(2)),
+    avg_duration: Number(Number(r1.avg_duration).toFixed(1)),
   };
 
   const kpis2 = {
@@ -184,7 +184,7 @@ async function queryCompare(pool, p1from, p1to, p2from, p2to, opts = {}) {
     no_answer:    Number(r2.no_answer),
     busy:         Number(r2.busy),
     failed:       Number(r2.failed),
-    avg_duration: Number(Number(r2.avg_duration).toFixed(2)),
+    avg_duration: Number(Number(r2.avg_duration).toFixed(1)),
   };
 
   const variation = {

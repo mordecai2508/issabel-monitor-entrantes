@@ -211,8 +211,13 @@ const KPI_LABELS = [
   { key: 'answered',     label: 'Llamadas Contestadas' },
   { key: 'no_answer',    label: 'Llamadas No contestadas' },
   { key: 'failed',       label: 'Fallidas' },
-  { key: 'avg_duration', label: 'Duración media de minutos (s)' },
+  { key: 'avg_duration', label: 'Duración media (min)' },
 ];
+
+function formatValue(key, val) {
+  if (key === 'avg_duration') return `${val} min`;
+  return val;
+}
 
 function VariationCell({ value }) {
   if (value === null || value === undefined) {
@@ -304,8 +309,8 @@ function CompareSection() {
               {KPI_LABELS.map(({ key, label }) => (
                 <tr key={key} className="border-b border-slate-800 hover:bg-slate-700/30">
                   <td className="py-2 px-3 text-slate-300">{label}</td>
-                  <td className="py-2 px-3 text-right text-slate-200">{data.period1[key]}</td>
-                  <td className="py-2 px-3 text-right text-slate-200">{data.period2[key]}</td>
+                  <td className="py-2 px-3 text-right text-slate-200">{formatValue(key, data.period1[key])}</td>
+                  <td className="py-2 px-3 text-right text-slate-200">{formatValue(key, data.period2[key])}</td>
                   <td className="py-2 px-3 text-right">
                     <VariationCell value={data.variation[key]} />
                   </td>
