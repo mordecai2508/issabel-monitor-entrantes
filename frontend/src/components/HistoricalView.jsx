@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Download } from 'lucide-react';
 import { api } from '../api';
 import { DispositionChart } from './DispositionChart';
@@ -6,10 +6,8 @@ import { HourlyChart } from './HourlyChart';
 import { ChannelTable } from './ChannelTable';
 import { StatCard } from './StatCard';
 import { Phone, PhoneCall, PhoneMissed, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { useAppConfig } from '../contexts/AppConfigContext';
+import { todayStr } from '../utils/date';
 
 function fmtDate(str) {
   if (!str) return '—';
@@ -19,11 +17,19 @@ function fmtDate(str) {
 }
 
 export default function HistoricalView() {
-  const [from, setFrom]     = useState(todayStr());
-  const [to, setTo]         = useState(todayStr());
+  const { dbTimezone } = useAppConfig();
+  const [from, setFrom]     = useState(() => todayStr(dbTimezone));
+  const [to, setTo]         = useState(() => todayStr(dbTimezone));
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState('');
+
+  useEffect(() => {
+    if (!dbTimezone) return;
+    const today = todayStr(dbTimezone);
+    setFrom(prev => (prev === todayStr(null) || prev === '') ? today : prev);
+    setTo(prev   => (prev === todayStr(null) || prev === '') ? today : prev);
+  }, [dbTimezone]);
 
   async function search() {
     if (!from || !to) return;
@@ -106,7 +112,7 @@ export default function HistoricalView() {
               type="date"
               className="input w-40"
               value={from}
-              max={todayStr()}
+              max={todayStr(dbTimezone)}
               onChange={e => setFrom(e.target.value)}
             />
           </div>
@@ -116,7 +122,7 @@ export default function HistoricalView() {
               type="date"
               className="input w-40"
               value={to}
-              max={todayStr()}
+              max={todayStr(dbTimezone)}
               onChange={e => setTo(e.target.value)}
             />
           </div>

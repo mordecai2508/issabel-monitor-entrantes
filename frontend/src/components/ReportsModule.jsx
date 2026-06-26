@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, FileSpreadsheet } from 'lucide-react';
 import { api } from '../api';
+import { useAppConfig } from '../contexts/AppConfigContext';
+import { todayStr } from '../utils/date';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -11,12 +13,6 @@ const REPORT_TYPES = [
   { value: 'extensions', label: 'Actividad de extensiones' },
   { value: 'trunks',     label: 'Actividad de troncales' },
 ];
-
-function todayStr() {
-  const d = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 // ── Small UI pieces ────────────────────────────────────────────────────────────
 
@@ -35,13 +31,20 @@ function Spinner() {
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ReportsModule() {
-  const today = todayStr();
+  const { dbTimezone } = useAppConfig();
 
   const [type, setType]     = useState('executive');
-  const [from, setFrom]     = useState(today);
-  const [to, setTo]         = useState(today);
+  const [from, setFrom]     = useState(() => todayStr(dbTimezone));
+  const [to, setTo]         = useState(() => todayStr(dbTimezone));
   const [loadingFormat, setLoadingFormat] = useState(null); // 'pdf' | 'xlsx' | null
   const [error, setError]   = useState(null);
+
+  useEffect(() => {
+    if (!dbTimezone) return;
+    const today = todayStr(dbTimezone);
+    setFrom(prev => (prev === todayStr(null) || prev === '') ? today : prev);
+    setTo(prev   => (prev === todayStr(null) || prev === '') ? today : prev);
+  }, [dbTimezone]);
 
   const canDownload = Boolean(type && from && to) && !loadingFormat;
 

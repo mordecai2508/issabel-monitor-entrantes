@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { AppConfigContext } from '../contexts/AppConfigContext';
 import {
   Phone, LayoutDashboard, History,
   LogOut, Shield, Eye, PhoneCall, Pencil, Check, X,
@@ -37,6 +38,7 @@ export default function Layout() {
 
   const [appName, setAppName]             = useState('Call Monitor');
   const [subcompanyName, setSubcompanyName] = useState('');
+  const [dbTimezone, setDbTimezone]       = useState(null);
   const [editing, setEditing]             = useState(false);
   const [editValue, setEditValue]         = useState('');
   const [saving, setSaving]               = useState(false);
@@ -50,6 +52,7 @@ export default function Layout() {
     api.publicConfig().then(d => {
       setAppName(d.appName);
       setSubcompanyName(d.subcompanyName || '');
+      if (d.dbTimezone) setDbTimezone(d.dbTimezone);
     }).catch(() => {});
   }, []);
 
@@ -93,6 +96,7 @@ export default function Layout() {
   }
 
   return (
+    <AppConfigContext.Provider value={{ dbTimezone }}>
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="w-56 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col p-4">
@@ -204,5 +208,6 @@ export default function Layout() {
         />
       )}
     </div>
+    </AppConfigContext.Provider>
   );
 }

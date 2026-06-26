@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { extractAgentName, formatBillsec, dispositionLabel } from '../utils/callFormatters';
+import { useAppConfig } from '../contexts/AppConfigContext';
+import { todayStr } from '../utils/date';
 
 // #37: la opción 'BUSY' se elimina porque BUSY se reclasifica a NO ANSWER en el backend
 const DISPOSITION_OPTIONS = [
@@ -36,7 +38,8 @@ function SortIcon({ col, sortCol, sortDir }) {
 }
 
 export default function OutboundTable() {
-  const today = new Date().toISOString().slice(0, 10);
+  const { dbTimezone } = useAppConfig();
+  const today = todayStr(dbTimezone);
 
   const [filters, setFilters] = useState({
     from: today,

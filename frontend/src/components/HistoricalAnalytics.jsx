@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAppConfig } from '../contexts/AppConfigContext';
+import { todayStr } from '../utils/date';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -7,36 +9,44 @@ import { api } from '../api';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
-function formatDate(d) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+function getDateRangeForPeriod(period, tz) {
+  const p = n => String(n).padStart(2, '0');
 
-function getDateRangeForPeriod(period) {
-  const now = new Date();
-  const y   = now.getFullYear();
-  const m   = now.getMonth();
-  const d   = now.getDate();
+  // Calcula la fecha actual en el timezone del servidor
+  const match = typeof tz === 'string' ? tz.match(/^([+-])(\d{2}):(\d{2})$/) : null;
+  const offsetMin = match
+    ? (match[1] === '+' ? 1 : -1) * (parseInt(match[2], 10) * 60 + parseInt(match[3], 10))
+    : 0;
+  const nowInTz = new Date(Date.now() + offsetMin * 60_000);
+  const y = nowInTz.getUTCFullYear();
+  const m = nowInTz.getUTCMonth();
+  const d = nowInTz.getUTCDate();
+  const dow = nowInTz.getUTCDay(); // 0=Sun
 
-  if (period === 'day') {
-    const today = formatDate(now);
-    return { from: today, to: today };
-  }
+  const fmt = (yr, mo, dy) => `${yr}-${p(mo + 1)}-${p(dy)}`;
+  const today = fmt(y, m, d);
+
+  if (period === 'day') return { from: today, to: today };
+
   if (period === 'week') {
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon …
-    const diff      = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // shift to Monday
-    const monday    = new Date(y, m, d + diff);
-    const sunday    = new Date(y, m, d + diff + 6);
-    return { from: formatDate(monday), to: formatDate(sunday) };
+    const diff   = dow === 0 ? -6 : 1 - dow; // shift to Monday
+    const monday = new Date(Date.UTC(y, m, d + diff));
+    const sunday = new Date(Date.UTC(y, m, d + diff + 6));
+    return {
+      from: fmt(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate()),
+      to:   fmt(sunday.getUTCFullYear(), sunday.getUTCMonth(), sunday.getUTCDate()),
+    };
   }
   if (period === 'month') {
-    const first = new Date(y, m, 1);
-    const last  = new Date(y, m + 1, 0);
-    return { from: formatDate(first), to: formatDate(last) };
+    const first = new Date(Date.UTC(y, m, 1));
+    const last  = new Date(Date.UTC(y, m + 1, 0));
+    return {
+      from: fmt(first.getUTCFullYear(), first.getUTCMonth(), first.getUTCDate()),
+      to:   fmt(last.getUTCFullYear(),  last.getUTCMonth(),  last.getUTCDate()),
+    };
   }
-  if (period === 'year') {
-    return { from: `${y}-01-01`, to: `${y}-12-31` };
-  }
+  if (period === 'year') return { from: `${y}-01-01`, to: `${y}-12-31` };
+
   return { from: '', to: '' };
 }
 
@@ -126,9 +136,10 @@ function PeriodSelector({ period, from, to, onPeriodChange, onFromChange, onToCh
 // ── Sección Tendencia ─────────────────────────────────────────────────────────
 
 function TrendSection() {
+  const { dbTimezone } = useAppConfig();
   const [period, setPeriod] = useState('month');
-  const [from,   setFrom]   = useState(() => getDateRangeForPeriod('month').from);
-  const [to,     setTo]     = useState(() => getDateRangeForPeriod('month').to);
+  const [from,   setFrom]   = useState(() => getDateRangeForPeriod('month', dbTimezone).from);
+  const [to,     setTo]     = useState(() => getDateRangeForPeriod('month', dbTimezone).to);
   const [data,   setData]   = useState(null);
   const [loading, setLoading] = useState(false);
   const [error,  setError]  = useState(null);
@@ -136,7 +147,7 @@ function TrendSection() {
   function handlePeriodChange(p) {
     setPeriod(p);
     if (p !== 'custom') {
-      const range = getDateRangeForPeriod(p);
+      const range = getDateRangeForPeriod(p, dbTimezone);
       setFrom(range.from);
       setTo(range.to);
     }
@@ -327,9 +338,10 @@ function CompareSection() {
 // ── Sección Rankings ──────────────────────────────────────────────────────────
 
 function RankingCard({ type }) {
+  const { dbTimezone } = useAppConfig();
   const [period,  setPeriod]  = useState('month');
-  const [from,    setFrom]    = useState(() => getDateRangeForPeriod('month').from);
-  const [to,      setTo]      = useState(() => getDateRangeForPeriod('month').to);
+  const [from,    setFrom]    = useState(() => getDateRangeForPeriod('month', dbTimezone).from);
+  const [to,      setTo]      = useState(() => getDateRangeForPeriod('month', dbTimezone).to);
   const [limit,   setLimit]   = useState(10);
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(false);
@@ -338,7 +350,7 @@ function RankingCard({ type }) {
   function handlePeriodChange(p) {
     setPeriod(p);
     if (p !== 'custom') {
-      const range = getDateRangeForPeriod(p);
+      const range = getDateRangeForPeriod(p, dbTimezone);
       setFrom(range.from);
       setTo(range.to);
     }

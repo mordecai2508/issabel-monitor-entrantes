@@ -675,7 +675,7 @@ async function startServer() {
 
   app.get('/api/config/public', (req, res) => {
     const subcompanyName = configService.getConfigValue(db, 'subcompanyName', '') || '';
-    res.json({ appName: getAppName(), subcompanyName });
+    res.json({ appName: getAppName(), subcompanyName, dbTimezone: config.db?.timezone || null });
   });
 
   app.put('/api/admin/app', requireAdmin, (req, res) => {
