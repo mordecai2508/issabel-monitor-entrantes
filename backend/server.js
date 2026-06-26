@@ -361,6 +361,11 @@ async function queryQueues(pool, from, to, inboundChannels, outboundChannels, qu
 }
 
 // ── Helpers de fecha ──────────────────────────────────────────────
+function toMySQLDate(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
 // todayRange usa el timezone de la BD (ej. "-05:00") para determinar qué
 // día es "hoy" en el servidor Asterisk, independientemente del TZ del proceso Node.
 function todayRange(dbTimezone) {
