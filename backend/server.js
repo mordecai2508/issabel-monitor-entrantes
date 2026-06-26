@@ -360,17 +360,31 @@ async function queryQueues(pool, from, to, inboundChannels, outboundChannels, qu
   return Object.values(result);
 }
 
-// ── Helpers de fecha (zona local del servidor) ────────────────────
-function toMySQLDate(d) {
+// ── Helpers de fecha ──────────────────────────────────────────────
+// todayRange usa el timezone de la BD (ej. "-05:00") para determinar qué
+// día es "hoy" en el servidor Asterisk, independientemente del TZ del proceso Node.
+function todayRange(dbTimezone) {
   const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-}
 
-function todayRange() {
-  const now  = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const to   = new Date(from.getTime() + 86400_000);
-  return { from: toMySQLDate(from), to: toMySQLDate(to) };
+  // Parsear offset tipo "-05:00" → minutos totales (puede ser negativo)
+  const match = typeof dbTimezone === 'string'
+    ? dbTimezone.match(/^([+-])(\d{2}):(\d{2})$/)
+    : null;
+  const offsetMinutes = match
+    ? (match[1] === '+' ? 1 : -1) * (parseInt(match[2], 10) * 60 + parseInt(match[3], 10))
+    : 0;
+
+  // Desplazar el instante actual al timezone destino y leer fecha con getUTC*
+  const nowInTz   = new Date(Date.now() + offsetMinutes * 60_000);
+  const y = nowInTz.getUTCFullYear();
+  const m = nowInTz.getUTCMonth();
+  const d = nowInTz.getUTCDate();
+
+  const from     = `${y}-${p(m+1)}-${p(d)} 00:00:00`;
+  const tomorrow = new Date(Date.UTC(y, m, d + 1));
+  const to       = `${tomorrow.getUTCFullYear()}-${p(tomorrow.getUTCMonth()+1)}-${p(tomorrow.getUTCDate())} 00:00:00`;
+
+  return { from, to };
 }
 
 // ── Arranque ──────────────────────────────────────────────────────
@@ -578,7 +592,7 @@ async function startServer() {
   app.get('/api/calls/today', requireAuth, async (req, res) => {
     if (!dbOk) return res.status(503).json({ ok: false, error: 'Base de datos no disponible. Configura config.json.' });
     try {
-      const { from, to } = todayRange();
+      const { from, to } = todayRange(config.db.timezone);
       const data = await fetchData(from, to);
       res.json({ ok: true, ...data });
     } catch (e) {
@@ -623,7 +637,7 @@ async function startServer() {
     // Enviar datos iniciales
     if (dbOk) {
       try {
-        const { from, to } = todayRange();
+        const { from, to } = todayRange(config.db.timezone);
         const data = await fetchData(from, to);
         data.pbxStatus = pbxHealthService.getStatus();
         res.write(`event: init\ndata: ${JSON.stringify(data)}\n\n`);
@@ -643,7 +657,7 @@ async function startServer() {
   setInterval(async () => {
     if (!dbOk || sseClients.size === 0) return;
     try {
-      const { from, to } = todayRange();
+      const { from, to } = todayRange(config.db.timezone);
       const data = await fetchData(from, to);
       broadcast('update', data);
     } catch (e) {
