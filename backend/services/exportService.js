@@ -144,7 +144,7 @@ function toPdf(rows, res, filenameBase, filters, truncated = false, title = null
     doc.moveDown(0.3);
   }
 
-  doc.fontSize(8).fillColor('#888888').text(`Generado: ${new Date().toISOString()}`, { align: 'center' });
+  doc.fontSize(8).fillColor('#888888').text(`Generado: ${new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}`, { align: 'center' });
   doc.moveDown(0.3);
 
   if (truncated) {
@@ -320,7 +320,7 @@ function drawReportHeader(doc, { type, from, to, branding }) {
   }
   doc.fontSize(16).font('Helvetica-Bold').fillColor('#1e3a5f').text(REPORT_TITLES[type] || 'Reporte', textX, doc.y + 2, { align: 'left' });
   doc.fontSize(10).font('Helvetica').fillColor('#333333').text(`Rango de fechas: ${from} — ${to}`, textX, doc.y + 4, { align: 'left' });
-  doc.fontSize(8).font('Helvetica').fillColor('#888888').text(`Generado: ${new Date().toISOString()}`, textX, doc.y + 2, { align: 'left' });
+  doc.fontSize(8).font('Helvetica').fillColor('#888888').text(`Generado: ${new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}`, textX, doc.y + 2, { align: 'left' });
 
   doc.y = Math.max(doc.y, startY + 60) + 10;
   doc.x = margin;
@@ -611,7 +611,7 @@ function writeXlsxHeaderBlock(worksheet, { title, companyName, subcompanyName, f
     worksheet.addRow([subcompanyName]).commit();
   }
   worksheet.addRow([`Rango de fechas: ${from} — ${to}`]).commit();
-  worksheet.addRow([`Generado: ${new Date().toISOString()}`]).commit();
+  worksheet.addRow([`Generado: ${new Date().toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}`]).commit();
   worksheet.addRow([]).commit();
 }
 
