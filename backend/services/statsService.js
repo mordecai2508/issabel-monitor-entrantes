@@ -251,7 +251,7 @@ async function queryRankings(pool, from, to, type, limit, opts = {}) {
               ${noAnswerExpr}             AS no_answer,
               SUM(disposition = 'BUSY')   AS busy,
               SUM(disposition = 'FAILED') AS failed,
-              ROUND(AVG(duration), 2)     AS avg_duration
+              ROUND(AVG(billsec) / 60, 1) AS avg_duration
        FROM cdr
        WHERE ${trunkConditions.join(' AND ')}
        GROUP BY name
